@@ -1,0 +1,9 @@
+#Procedure: <__main__.IVProcedure>
+#Parameters:
+#	Current Step: 0.1 mA
+#	Delay Time: 20 ms
+#	Maximum Current: 10 mA
+#	Minimum Current: -10 mA
+#	Voltage Range: 10 V
+#Data:
+Current (A),Voltage (V),Resistance (Ohm)
