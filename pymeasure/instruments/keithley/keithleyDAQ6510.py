@@ -187,35 +187,35 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
             channels = [100 * slotNumber + ch for ch in channels]
             self.CHANNELSLIST_VALUES.extend(channels)
 
-    def close_rows_to_columns(self, rows, columns, slot=None):
+    def close_rows_to_columns(self, rows, columns, cardModel='7700', slot=1):
         """ Closes (connects) the channels between column(s) and row(s)
-        of the 7709 connection matrix.
+        of the cardModel connection matrix.
         Only one of the parameters `rows' or 'columns' can be "all"
 
         :param rows: row number or list of numbers; can also be "all"
         :param columns: column number or list of numbers; can also be "all"
-        :param slot: slot number (1 or 2) of the 7709 card to be used
+        :param slot: slot number (1 or 2) of the DAQ6510
         """
 
-        channels = self.channels_from_rows_columns(rows, columns, slot)
+        channels = self.channels_from_rows_columns(rows, columns,cardModel, slot)
         self.closed_channels = channels
 
-    def open_rows_to_columns(self, rows, columns, slot=None):
+    def open_rows_to_columns(self, rows, columns, cardModel='7700', slot=1):
         """ Opens (disconnects) the channels between column(s) and row(s)
-        of the 7709 connection matrix.
+        of the cardModel connection matrix.
         Only one of the parameters `rows' or 'columns' can be "all"
 
         :param rows: row number or list of numbers; can also be "all"
         :param columns: column number or list of numbers; can also be "all"
-        :param slot: slot number (1 or 2) of the 7709 card to be used
+        :param slot: slot number (1 or 2) of the DAQ6510
         """
 
-        channels = self.channels_from_rows_columns(rows, columns, slot)
+        channels = self.channels_from_rows_columns(rows, columns, cardModel, slot)
         self.open_channels = channels
 
-    def channels_from_rows_columns(self, rows, columns, slot=None):
+    def channels_from_rows_columns(self, rows, columns, cardModel, slot=None):
         """ Determine the channel numbers between column(s) and row(s) of the
-        7709 connection matrix. Returns a list of channel numbers.
+        cardModel connection matrix. Returns a list of channel numbers.
         Only one of the parameters `rows' or 'columns' can be "all"
 
         :param rows: row number or list of numbers; can also be "all"
@@ -224,15 +224,15 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
         """
 
-        if slot is not None and self.cards[slot] != "7709":
+        if slot is not None and self.cards[slot] != cardModel:
             raise ValueError("No 7709 card installed in slot %g" % slot)
 
         if isinstance(rows, str) and isinstance(columns, str):
             raise ValueError("Only one parameter can be 'all'")
         elif isinstance(rows, str) and rows == "all":
-            rows = list(range(1, 7))
+            rows = list(range(1, 11))  #numero máximo de rows = 10, del 1 al 10 incl
         elif isinstance(columns, str) and columns == "all":
-            columns = list(range(1, 9))
+            columns = list(range(1, 3)) #numero máximo de columns = 2, del 1 al 2 incl
 
         if isinstance(rows, (list, tuple, np.ndarray)) and \
                 isinstance(columns, (list, tuple, np.ndarray)):
