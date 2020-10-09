@@ -61,7 +61,7 @@ def clist_validator(value, values): #ok
     clist = [c.rjust(3, "1") for c in clist]
 
     # print(clist)
-    # print(values)
+    # print('values',values)
     # print(value)
 
     # Check channels against valid channels
@@ -116,7 +116,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         All mentioned channels are closed, other channels will be opened.
         """,
         validator=clist_validator,
-        values=CARDSLIST_VALUES,
+        values=CHANNELSLIST_VALUES,
         check_get_errors=True,
         check_set_errors=True,
         separator=None,
@@ -131,7 +131,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         be set.
         """,
         validator=clist_validator,
-        values=CARDSLIST_VALUES,
+        values=CHANNELSLIST_VALUES,
         check_set_errors=True
     )
 
@@ -141,7 +141,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :param channels: a list of channel numbers, or single channel number
         """
         clist = clist_validator(channels, self.CHANNELSLIST_VALUES)
-        print("ROUTe:MULTiple:STATe? %s" % clist + '\n')
+        #print("ROUTe:MULTiple:STATe? %s" % clist + '\n')
         state = self.ask("ROUTe:STATe? %s" % clist + '\n')
         #print(state)
         return state
@@ -157,8 +157,8 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         self.check_errors()
         self.determine_installed_cards()
         self.determine_valid_channels()
-        print(self.get_state_of_channels(range(101,110)))
         #print(self.CHANNELSLIST_VALUES)
+        self.open_rows_to_columns(1,(1,2,3,4))
 
     def determine_installed_cards(self):#ok
 
@@ -166,9 +166,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         self.CARDSLIST_VALUES.append(self.values("syst:card2:idn?\n", separator=","))
 
     def determine_valid_channels(self):#ok
-        """ Determine what cards are installed into the Keithley DAQ6510
-        and from that determine what channels are valid.
-        """
+        """ Determine what channels are valid from the installed cards. """
 
         self.CHANNELSLIST_VALUES.clear()
         for slotNumber, card in enumerate(self.CARDSLIST_VALUES,1):
@@ -176,7 +174,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
                 continue
             elif str(card[0]) == '7700.0':
                 #print(card)
-                """The 7700 is a 10(rows) x 2(columns) matrix card and two
+                """The 7700 is a 10(columns) x 2(rows) matrix card and two
                 #   AC-DC Current(21 & 22) channels and three additional switches (23, 24, 25)   
                 #   that allow row 1 and 2 to be connected to the DMM backplane (input and sense respectively).
                 #   """
@@ -187,7 +185,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
             channels = [100 * slotNumber + ch for ch in channels]
             self.CHANNELSLIST_VALUES.extend(channels)
 
-    def close_rows_to_columns(self, rows, columns, cardModel='7700', slot=1):
+    def close_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, slot=1):
         """ Closes (connects) the channels between column(s) and row(s)
         of the cardModel connection matrix.
         Only one of the parameters `rows' or 'columns' can be "all"
@@ -197,10 +195,10 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :param slot: slot number (1 or 2) of the DAQ6510
         """
 
-        channels = self.channels_from_rows_columns(rows, columns,cardModel, slot)
+        channels = self.channels_from_rows_columns(rows, columns,cardModel, cardNRows, cardNColumns, slot)
         self.closed_channels = channels
 
-    def open_rows_to_columns(self, rows, columns, cardModel='7700', slot=1):
+    def open_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, slot=1):
         """ Opens (disconnects) the channels between column(s) and row(s)
         of the cardModel connection matrix.
         Only one of the parameters `rows' or 'columns' can be "all"
@@ -210,29 +208,35 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :param slot: slot number (1 or 2) of the DAQ6510
         """
 
-        channels = self.channels_from_rows_columns(rows, columns, cardModel, slot)
+        channels = self.channels_from_rows_columns(rows, columns,cardModel, cardNRows, cardNColumns, slot)
         self.open_channels = channels
 
-    def channels_from_rows_columns(self, rows, columns, cardModel, slot=None):
+    def channels_from_rows_columns(self, rows, columns, cardModel, cardNRows, cardNColumns, slot=None):
         """ Determine the channel numbers between column(s) and row(s) of the
         cardModel connection matrix. Returns a list of channel numbers.
         Only one of the parameters `rows' or 'columns' can be "all"
 
-        :param rows: row number or list of numbers; can also be "all"
-        :param columns: column number or list of numbers; can also be "all"
-        :param slot: slot number (1 or 2) of the 7709 card to be used
+        :param rows: row number or list of numbers; can also be "all". Rows starts from 1
+        :param columns: column number or list of numbers; can also be "all". Columns starts from 0
+        :param slot: slot number (1 or 2) of the DAQ6510 card to be used
+
+        In
 
         """
 
-        if slot is not None and self.cards[slot] != cardModel:
-            raise ValueError("No 7709 card installed in slot %g" % slot)
+
+        if 1 > slot > 2:
+            raise ValueError("Parameter slot must be 1 or 2") #DAQ6510 only have 2 slots
+
+        if (slot is not None) and (self.CARDSLIST_VALUES[slot-1][0] != float(cardModel)):
+            raise ValueError("No " + cardModel + " card installed in slot %g" % slot)
 
         if isinstance(rows, str) and isinstance(columns, str):
             raise ValueError("Only one parameter can be 'all'")
         elif isinstance(rows, str) and rows == "all":
-            rows = list(range(1, 11))  #numero máximo de rows = 10, del 1 al 10 incl
+            rows = list(range(1, cardNRows+1))
         elif isinstance(columns, str) and columns == "all":
-            columns = list(range(1, 3)) #numero máximo de columns = 2, del 1 al 2 incl
+            columns = list(range(1, cardNColumns+1))
 
         if isinstance(rows, (list, tuple, np.ndarray)) and \
                 isinstance(columns, (list, tuple, np.ndarray)):
@@ -260,12 +264,15 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         # Determine channel number from rows and columns number.
         rows = np.array(rows)
         columns = np.array(columns)
+        #print(rows)
+        #print(columns)
 
-        channels = (rows - 1) * 8 + columns
+        channels = (rows - 1) * cardNColumns + columns
 
         if slot is not None:
             channels += 100 * slot
 
+        print(channels)
         return channels
 
     # system, some taken from Keithley 2400
@@ -307,7 +314,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         while code != 0:
             t = time.time()
             log.info("Keithley DAQ6510 reported error: %d, %s" % (code, message))
-            print(code, message)
+            #print(code, message)
             code, message = self.error
             if (time.time() - t) > 10:
                 log.warning("Timed out for Keithley DAQ6510 error retrieval.")

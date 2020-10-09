@@ -72,7 +72,7 @@ class EthernetAdapter(Adapter):
 
         :param command: SCPI command string to be sent to the instrument
         """
-        self.connection.send((command).encode())  # encode added for Python 3
+        self.connection.send(command.encode())  # encode added for Python 3
 
     def read(self):
         """ Reads until the buffer is empty and returns the resulting
@@ -90,7 +90,7 @@ class EthernetAdapter(Adapter):
         :param command: SCPI command string to be sent to the instrument
         :returns: String ASCII response of the instrument
         """
-        self.connection.send((command).encode())
+        self.connection.send(command.encode())
         return self.connection.recv(1024).decode()
 
     def binary_values(self, command, header_bytes=0, dtype=np.float32):
@@ -101,7 +101,7 @@ class EthernetAdapter(Adapter):
         :param dtype: The NumPy data type to format the values with
         :returns: NumPy array of values
         """
-        self.connection.send((command).encode())
+        self.connection.send(command.encode())
         binary = self.connection.recv(1024).decode()
         header, data = binary[:header_bytes], binary[header_bytes:]
         return np.fromstring(data, dtype=dtype)
