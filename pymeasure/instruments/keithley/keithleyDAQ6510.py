@@ -45,6 +45,8 @@ def clist_validator(value, values): #ok
     :param value: A value to test
     :param values: A range of values (range, list, etc.)
     :raises: ValueError if the value is out of the range
+
+    For example
     """
     # Convert value to list of strings
     if isinstance(value, str):
@@ -162,12 +164,13 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     def determine_installed_cards(self):#ok
 
+        """ Determine what cards are intalled from the DAQ6510. """
         self.CARDSLIST_VALUES.append(self.values("syst:card1:idn?\n", separator=","))
         self.CARDSLIST_VALUES.append(self.values("syst:card2:idn?\n", separator=","))
 
     def determine_valid_channels(self):#ok
-        """ Determine what channels are valid from the installed cards. """
 
+        """ Determine what channels are valid from the installed cards. """
         self.CHANNELSLIST_VALUES.clear()
         for slotNumber, card in enumerate(self.CARDSLIST_VALUES,1):
             if str(card[0]) == 'Empty Slot':

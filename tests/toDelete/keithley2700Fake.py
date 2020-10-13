@@ -122,6 +122,16 @@ class Keithley2700Fake(InstrumentFake):
         check_set_errors=True
     )
 
+    open_channels = InstrumentFake.setting(
+        "ROUTe:MULTiple:OPEN %s",
+        """ A parameter that opens the specified list of channels. Can only
+        be set.
+        """,
+        validator=clist_validator,
+        values=CLIST_VALUES,
+        check_set_errors=True
+    )
+
     def get_state_of_channels(self, channels):
         """ Get the open or closed state of the specified channels
 
@@ -141,6 +151,7 @@ class Keithley2700Fake(InstrumentFake):
         super(Keithley2700Fake, self).__init__(
             adapter, "Keithley 2700 MultiMeter/Switch System", **kwargs
         )
+        print(type(self.open_channels))
         #self.closed_channels = [10, 11, 12]
         #print(self.closed_channels)
         #self.check_errors()

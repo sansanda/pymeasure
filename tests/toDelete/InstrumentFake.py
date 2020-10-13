@@ -24,6 +24,7 @@
 
 import logging
 import re
+import inspect
 
 import numpy as np
 
@@ -131,53 +132,56 @@ class InstrumentFake(object):
         :param check_get_errors: Toggles checking errors after getting
         """
 
-        print(values)
+        print(type(values))
+        # for value in values:
+        #     print(value)
+
         if map_values and isinstance(values, dict):
             # Prepare the inverse values for performance
             inverse = {v: k for k, v in values.items()}
 
-        # def fget(self):
-        #     vals = self.values(get_command, **kwargs)
-        #     if check_get_errors:
-        #         self.check_errors()
-        #     if len(vals) == 1:
-        #         value = get_process(vals[0])
-        #         if not map_values:
-        #             return value
-        #         elif isinstance(values, (list, tuple, range)):
-        #             return values[int(value)]
-        #         elif isinstance(values, dict):
-        #             return inverse[value]
-        #         else:
-        #             raise ValueError(
-        #                 'Values of type `{}` are not allowed '
-        #                 'for Instrument.control'.format(type(values))
-        #             )
-        #     else:
-        #         vals = get_process(vals)
-        #         return vals
-        #
-        # def fset(self, value):
-        #     value = set_process(validator(value, values))
-        #     if not map_values:
-        #         pass
-        #     elif isinstance(values, (list, tuple, range)):
-        #         value = values.index(value)
-        #     elif isinstance(values, dict):
-        #         value = values[value]
-        #     else:
-        #         raise ValueError(
-        #             'Values of type `{}` are not allowed '
-        #             'for Instrument.control'.format(type(values))
-        #         )
-        #     self.write(set_command % value)
-        #     if check_set_errors:
-        #         self.check_errors()
-        #
-        # # Add the specified document string to the getter
-        # fget.__doc__ = docs
-        #
-        # return property(fget, fset)
+        def fget(self):
+            vals = self.values(get_command, **kwargs)
+            if check_get_errors:
+                self.check_errors()
+            if len(vals) == 1:
+                value = get_process(vals[0])
+                if not map_values:
+                    return value
+                elif isinstance(values, (list, tuple, range)):
+                    return values[int(value)]
+                elif isinstance(values, dict):
+                    return inverse[value]
+                else:
+                    raise ValueError(
+                        'Values of type `{}` are not allowed '
+                        'for Instrument.control'.format(type(values))
+                    )
+            else:
+                vals = get_process(vals)
+                return vals
+
+        def fset(self, value):
+            value = set_process(validator(value, values))
+            if not map_values:
+                pass
+            elif isinstance(values, (list, tuple, range)):
+                value = values.index(value)
+            elif isinstance(values, dict):
+                value = values[value]
+            else:
+                raise ValueError(
+                    'Values of type `{}` are not allowed '
+                    'for Instrument.control'.format(type(values))
+                )
+            self.write(set_command % value)
+            if check_set_errors:
+                self.check_errors()
+
+        # Add the specified document string to the getter
+        fget.__doc__ = docs
+
+        return property(fget, fset)
 
     @staticmethod
     def measurement(get_command, docs, values=(), map_values=None,
