@@ -23,7 +23,6 @@
 #
 
 import logging
-
 import socket
 import numpy as np
 import os

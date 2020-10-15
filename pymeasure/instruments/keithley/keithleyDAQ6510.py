@@ -23,6 +23,7 @@
 #
 
 import logging
+
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
@@ -37,7 +38,7 @@ from io import BytesIO
 import re
 
 
-def clist_validator(value, values): #ok
+def clist_validator(value, values):  # ok
     """ Provides a validator function that returns a valid clist string
     for channel commands of the Keithley DAQ6510. Otherwise it raises a
     ValueError.
@@ -51,7 +52,7 @@ def clist_validator(value, values): #ok
     # Convert value to list of strings
     if isinstance(value, str):
         clist = [value.strip(" @(),")]
-    elif isinstance(value, (int, float)):
+    elif isinstance(value, (int, float, np.int32)):
         clist = ["{:d}".format(value)]
     elif isinstance(value, (list, tuple, np.ndarray, range)):
         clist = ["{:d}".format(x) for x in value]
@@ -106,14 +107,14 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     # p.e: [7700.0, '20Ch Mux w/CJC', '0.0.0a', 1324982.0] at CARDSLIST_VALUES[0] if a 7700 is plugged to the slot 1 of the daq6510
     # p.e: ['Empty Slot'] at CARDSLIST_VALUES[1] is none is plugged to the slot 2 of the daq6510
     CARDSLIST_VALUES = list()
-    #list of lists on every list has the valid channels of the card installed in the instrument
-    #p.e: [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122]
+    # list of lists on every list has the valid channels of the card installed in the instrument
+    # p.e: [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122]
     # at CHANNELSLIST_VALUES[0] is a 7700 card is pugged to the slot 1 of the instrument
     CHANNELSLIST_VALUES = list()
 
     # Routing commands
     closed_channels = Instrument.control(
-        "ROUTe:MULTiple:CLOSe?", "ROUTe:MULTiple:CLOSe %s",
+        "ROUTe:MULTiple:CLOSe?\n", "ROUTe:MULTiple:CLOSe %s\n",
         """ Parameter that controls the opened and closed channels.
         All mentioned channels are closed, other channels will be opened.
         """,
@@ -128,7 +129,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     )
 
     open_channels = Instrument.setting(
-        "ROUTe:MULTiple:OPEN %s",
+        "ROUTe:MULTiple:OPEN %s\n",
         """ A parameter that opens the specified list of channels. Can only
         be set.
         """,
@@ -137,18 +138,18 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         check_set_errors=True
     )
 
-    def get_state_of_channels(self, channels):#ok
+    def get_state_of_channels(self, channels):  # ok
         """ Get the open or closed state of the specified channels
 
         :param channels: a list of channel numbers, or single channel number
         """
         clist = clist_validator(channels, self.CHANNELSLIST_VALUES)
-        #print("ROUTe:MULTiple:STATe? %s" % clist + '\n')
+        # print("ROUTe:MULTiple:STATe? %s" % clist + '\n')
         state = self.ask("ROUTe:STATe? %s" % clist + '\n')
-        #print(state)
+        # print(state)
         return state
 
-    def open_all_channels(self): #ok
+    def open_all_channels(self):  # ok
         """ Open all channels of the Keithley DAQ6510.
         """
         self.write(":ROUTe:OPEN:ALL\n")
@@ -159,24 +160,26 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         self.check_errors()
         self.determine_installed_cards()
         self.determine_valid_channels()
-        #print(self.CHANNELSLIST_VALUES)
-        self.open_rows_to_columns(1,(1,2,3,4))
+        # print(self.CHANNELSLIST_VALUES)
+        self.close_individual_channels('all')
+        self.open_individual_channels((1,2))
+        self.display_closed_channels(0,50)
 
-    def determine_installed_cards(self):#ok
+    def determine_installed_cards(self):  # ok
 
         """ Determine what cards are intalled from the DAQ6510. """
         self.CARDSLIST_VALUES.append(self.values("syst:card1:idn?\n", separator=","))
         self.CARDSLIST_VALUES.append(self.values("syst:card2:idn?\n", separator=","))
 
-    def determine_valid_channels(self):#ok
+    def determine_valid_channels(self):  # ok
 
         """ Determine what channels are valid from the installed cards. """
         self.CHANNELSLIST_VALUES.clear()
-        for slotNumber, card in enumerate(self.CARDSLIST_VALUES,1):
+        for slotNumber, card in enumerate(self.CARDSLIST_VALUES, 1):
             if str(card[0]) == 'Empty Slot':
                 continue
             elif str(card[0]) == '7700.0':
-                #print(card)
+                # print(card)
                 """The 7700 is a 10(columns) x 2(rows) matrix card and two
                 #   AC-DC Current(21 & 22) channels and three additional switches (23, 24, 25)   
                 #   that allow row 1 and 2 to be connected to the DMM backplane (input and sense respectively).
@@ -188,58 +191,107 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
             channels = [100 * slotNumber + ch for ch in channels]
             self.CHANNELSLIST_VALUES.extend(channels)
 
-    def close_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, slot=1):
+    def close_individual_channels(self, channels):
+        """ Closes (connects) the channels of the cardModel connection matrix.
+
+        :param channels: list or tuple of channels to close; can also be "all"
+            """
+        if isinstance(channels, str) and channels == "all":
+            self.closed_channels = self.CHANNELSLIST_VALUES
+        else: self.closed_channels = channels
+
+    def open_individual_channels(self, channels):
+        """ Opens (unconnects) the channels of the cardModel connection matrix.
+
+        :param channels: list or tuple of channels to open; can also be "all"
+            """
+        if isinstance(channels, str) and channels == "all":
+            self.open_channels = self.CHANNELSLIST_VALUES
+        else: self.open_channels = channels
+
+    def close_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, instrumentNSlots=2, slot=1):  # ok
         """ Closes (connects) the channels between column(s) and row(s)
         of the cardModel connection matrix.
         Only one of the parameters `rows' or 'columns' can be "all"
+        For example: If we have installed at the slot 1 a 7700 card which has only 2 rows and ten columns per row
+        and we want to close the channels 101, 102 and 103, then the parameters will be
+        slot=1, rows = 1 and columns = (1,2,3)
 
-        :param rows: row number or list of numbers; can also be "all"
-        :param columns: column number or list of numbers; can also be "all"
+        :param rows: row number or list of numbers only between 1 and 2 for cardModel='7700'; can also be "all"
+        :param columns: column number or list of numbers only between 1 and 10 for cardModel='7700; can also be "all"
+        :param cardModel: The model of the card installed in the DAQ6510
+        :param cardNRows: The number of rows of the card installed int the DAQ6510
+        :param cardNColumns: The number of columns of the card installed in the DAQ6510
         :param slot: slot number (1 or 2) of the DAQ6510
         """
 
-        channels = self.channels_from_rows_columns(rows, columns,cardModel, cardNRows, cardNColumns, slot)
+        channels = self.channels_from_rows_columns(rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots, slot)
         self.closed_channels = channels
 
-    def open_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, slot=1):
+    def open_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, instrumentNSlots=2, slot=1):  # ok
         """ Opens (disconnects) the channels between column(s) and row(s)
         of the cardModel connection matrix.
         Only one of the parameters `rows' or 'columns' can be "all"
+        For example: If we have installed at the slot 1 a 7700 card which has only 2 rows and ten columns per row
+        and we want to open the channels 101, 102 and 103, then the parameters will be
+        slot=1, rows = 1 and columns = (1,2,3)
 
-        :param rows: row number or list of numbers; can also be "all"
-        :param columns: column number or list of numbers; can also be "all"
+
+        :param rows: row number or list of numbers only between 1 and 2 for cardModel='7700'; can also be "all"
+        :param columns: column number or list of numbers only between 1 and 10 for cardModel='7700; can also be "all"
+        :param cardModel: The model of the card installed in the DAQ6510
+        :param cardNRows: The number of rows of the card installed int the DAQ6510
+        :param cardNColumns: The number of columns of the card installed in the DAQ6510
         :param slot: slot number (1 or 2) of the DAQ6510
         """
 
-        channels = self.channels_from_rows_columns(rows, columns,cardModel, cardNRows, cardNColumns, slot)
+        channels = self.channels_from_rows_columns(rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots, slot)
         self.open_channels = channels
 
-    def channels_from_rows_columns(self, rows, columns, cardModel, cardNRows, cardNColumns, slot=None):
+    def channels_from_rows_columns(self, rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots, slot=None):#ok
         """ Determine the channel numbers between column(s) and row(s) of the
         cardModel connection matrix. Returns a list of channel numbers.
         Only one of the parameters `rows' or 'columns' can be "all"
+        For example: If we have installed at the slot 1 a 7700 card which has only 2 rows and ten columns per row
+        and we want to determine the channel numbers between column = (1,2,3) and row = 1 then the parameters will be
+        slot=1, rows = 1 and columns = (1,2,3) and the result returned will be [101, 102, 103]
 
-        :param rows: row number or list of numbers; can also be "all". Rows starts from 1
-        :param columns: column number or list of numbers; can also be "all". Columns starts from 0
-        :param slot: slot number (1 or 2) of the DAQ6510 card to be used
-
-        In
+        :param rows: row number or list of numbers; can also be "all"
+        :param columns: column number or list of numbers; can also be "all"
+        :param cardModel: The model of the card installed in the DAQ6510
+        :param cardNRows: The number of rows of the card installed int the DAQ6510
+        :param cardNColumns: The number of columns of the card installed in the DAQ6510
+        :param slot: slot number (1 or 2) of the DAQ6510
 
         """
 
+        if slot not in range(1,instrumentNSlots+1):
+            raise ValueError("Parameter slot must be between 1 and %s" % instrumentNSlots)  # 7700 only have 2 slots
 
-        if 1 > slot > 2:
-            raise ValueError("Parameter slot must be 1 or 2") #DAQ6510 only have 2 slots
+        if isinstance(rows,int) and (not rows in range(1,cardNRows+1)):
+            raise ValueError("Parameter rows must be between 1 and %s" % cardNRows)  # 7700 only have 2 rows
 
-        if (slot is not None) and (self.CARDSLIST_VALUES[slot-1][0] != float(cardModel)):
+        if isinstance(rows, tuple) or isinstance(rows, list):
+            if not set(rows).issubset([(i) for i  in range(1,cardNRows+1)]):
+                raise ValueError("Parameter rows must be between 1 and %s" % cardNRows)  # 7700 only have 2 rows
+
+        if isinstance(columns,int) and (not columns in range(1,cardNColumns+1)):
+            raise ValueError("Parameter columns must be between 1 and %s" % cardNColumns)  # 7700 only have 10 columns
+
+        if isinstance(columns, tuple) or isinstance(columns, list):
+            if not set(columns).issubset([(i) for i  in range(1,cardNColumns+1)]):
+                raise ValueError("Parameter columns must be between 1 and %s" % cardNColumns)  # 7700 only have 10 columns
+
+        if (slot is not None) and (self.CARDSLIST_VALUES[slot - 1][0] != float(cardModel)):
             raise ValueError("No " + cardModel + " card installed in slot %g" % slot)
+
 
         if isinstance(rows, str) and isinstance(columns, str):
             raise ValueError("Only one parameter can be 'all'")
         elif isinstance(rows, str) and rows == "all":
-            rows = list(range(1, cardNRows+1))
+            rows = list(range(1, cardNRows + 1))
         elif isinstance(columns, str) and columns == "all":
-            columns = list(range(1, cardNColumns+1))
+            columns = list(range(1, cardNColumns + 1))
 
         if isinstance(rows, (list, tuple, np.ndarray)) and \
                 isinstance(columns, (list, tuple, np.ndarray)):
@@ -267,8 +319,8 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         # Determine channel number from rows and columns number.
         rows = np.array(rows)
         columns = np.array(columns)
-        #print(rows)
-        #print(columns)
+        # print(rows)
+        # print(columns)
 
         channels = (rows - 1) * cardNColumns + columns
 
@@ -278,16 +330,16 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         print(channels)
         return channels
 
-    # system, some taken from Keithley 2400
-    def beep(self, frequency, duration):
+    # system, some taken from Keithley DAQ6510
+    def beep(self, frequency, duration):#ok
         """ Sounds a system beep.
 
         :param frequency: A frequency in Hz between 65 Hz and 2 MHz
         :param duration: A time in seconds between 0 and 7.9 seconds
         """
-        self.write(":SYST:BEEP %g, %g" % (frequency, duration))
+        self.write(":SYST:BEEP %g, %g\n" % (frequency, duration))
 
-    def triad(self, base_frequency, duration):
+    def triad(self, base_frequency, duration):#ok
         """ Sounds a musical triad using the system beep.
 
         :param base_frequency: A frequency in Hz between 65 Hz and 1.3 MHz
@@ -300,69 +352,84 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         self.beep(base_frequency * 6.0 / 4.0, duration)
 
     @property
-    def error(self):#ok
+    def error(self):  # ok
         """ Returns a tuple of an error code and message from a
         single error. """
-        err = self.values(":system:error?\n",separator=",")
+        err = self.values(":system:error?\n", separator=",")
         if len(err) < 2:
             err = self.read()  # Try reading again
         code = err[0]
         message = err[1].replace('"', '')
         return (code, message)
 
-    def check_errors(self):#ok
+    def check_errors(self):  # ok
         """ Logs any system errors reported by the instrument.
         """
         code, message = self.error
         while code != 0:
             t = time.time()
             log.info("Keithley DAQ6510 reported error: %d, %s" % (code, message))
-            #print(code, message)
+            # print(code, message)
             code, message = self.error
             if (time.time() - t) > 10:
                 log.warning("Timed out for Keithley DAQ6510 error retrieval.")
 
-    def reset(self):#ok
+    def reset(self):  # ok
         """ Resets the instrument and clears the queue.  """
         # self.write("status:queue:clear;*RST;:stat:pres;:*CLS;")
-        self.write("*RST;:stat:pres;:*CLS;")
+        self.write("*RST;:stat:pres;:*CLS;\n")
 
-    options = Instrument.measurement(
-        "*OPT?\n",
-        """Property that lists the installed cards in the Keithley DAQ6510.
-        Returns a dict with the integer card numbers on the position.""",
-        cast=False
-    )
 
     ###########
     # DISPLAY #
     ###########
 
-    text_enabled = Instrument.control(
-        "DISP:TEXT:STAT?", "DISP:TEXT:STAT %d",
-        """ A boolean property that controls whether a text message can be
-        shown on the display of the Keithley DAQ6510.
-        """,
-        values={True: 1, False: 0},
+    display_control = Instrument.control(
+        "DISPlay:LIGHt:STATe?\n", "DISPlay:LIGHt:STATe %s\n",
+        """A property that sets the light output level of the front-panel display of the Keithley DAQ6510.""",
+        values={100: 'ON100', 75: 'ON75', 50: 'ON50', 25: 'ON25', 0: 'OFF', 'ALLOFF': 'BLACkout'},
         map_values=True,
     )
-    display_text = Instrument.control(
-        "DISP:TEXT:DATA?", "DISP:TEXT:DATA '%s'",
-        """ A string property that controls the text shown on the display of
+
+    display_text_at_topline = Instrument.setting(
+        "DISPlay:USER1:TEXT:DATA '%s'\n",
+        """ A string property that controls the text shown on the top line of the display of
         the Keithley DAQ6510. Text can be up to 12 ASCII characters and must be
         enabled to show.
         """,
         validator=text_length_validator,
-        values=12,
+        values=20,
         cast=str,
         separator="NO_SEPARATOR",
         get_process=lambda v: v.strip("'\""),
     )
 
-    def display_closed_channels(self):
-        """ Show the presently closed channels on the display of the Keithley
-        DAQ6510.
+    display_text_at_bottomline = Instrument.setting(
+        "DISPlay:USER2:TEXT:DATA '%s'\n",
+        """ A string property that controls the text shown on the bottom line of the  the display of
+        the Keithley DAQ6510. Text can be up to 12 ASCII characters and must be
+        enabled to show.
+        """,
+        validator=text_length_validator,
+        values=32,
+        cast=str,
+        separator="NO_SEPARATOR",
+        get_process=lambda v: v.strip("'\""),
+    )
+
+    def display_closed_channels(self, line=1, brightness=75):#ok
+        """ Show the presently closed channels on the display of the Keithley DAQ6510.
+
+        :param line: 1 for displaying at top line, 2 for displaying at bottom line or 0 for both
+
         """
+        if line not in (0, 1, 2): return
+
+        str_length_for_bottomline = 32
+        str_length_for_topline = 20
+
+        # control the display
+        self.display_control = brightness
 
         # Get the closed channels and make a string of the list
         channels = self.closed_channels
@@ -371,14 +438,52 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         ])
 
         # Prepend "Closed: " or "C: " to the string, depending on the length
-        str_length = 12
-        if len(channel_string) < str_length - 8:
-            channel_string = "Closed: " + channel_string
-        elif len(channel_string) < str_length - 3:
-            channel_string = "C: " + channel_string
 
-        # enable displaying text-messages
-        self.text_enabled = True
+        if len(channel_string) < str_length_for_topline - 8:
+            channel_string_for_topline = "Closed: " + channel_string
+        else:
+            channel_string_for_topline = "C: " + channel_string
+
+        channel_string_for_topline = channel_string_for_topline[0:str_length_for_topline]
+
+        if len(channel_string) < str_length_for_bottomline - 8:
+            channel_string_for_bottomline = "Closed: " + channel_string
+        else:
+            channel_string_for_bottomline = "C: " + channel_string
+
+        channel_string_for_bottomline = channel_string_for_bottomline[0:str_length_for_bottomline]
 
         # write the string to the display
-        self.display_text = channel_string
+        if line==1:
+            self.display_text_at_topline = channel_string_for_topline
+        elif line==2:
+            self.display_text_at_bottomline = channel_string_for_bottomline
+        else:
+            self.display_text_at_topline = channel_string_for_topline
+            self.display_text_at_bottomline = channel_string_for_bottomline
+
+    def display_text(self, text, line=1, brightness=75):#ok
+        """ Show a text on the display of the Keithley DAQ6510.
+
+        :param line: 1 for displaying at top line, 2 for displaying at bottom line or 0 for both
+
+        """
+        if line not in (0, 1, 2) or (not isinstance(text,str)): return
+
+        str_length_for_bottomline = 32
+        str_length_for_topline = 20
+
+        # control the display
+        self.display_control = brightness
+
+        # write the string to the display
+        if line==1:
+            self.display_text_at_topline = text[0:str_length_for_topline]
+        elif line==2:
+            self.display_text_at_bottomline = text[0:str_length_for_bottomline]
+        else:
+            self.display_text_at_topline = text[0:str_length_for_topline]
+            self.display_text_at_bottomline = text[0:str_length_for_bottomline]
+
+    def clear_display(self):#ok
+        self.write(':DISPlay:CLEar\n')

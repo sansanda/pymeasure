@@ -48,6 +48,7 @@ class Adapter(object):
         :param command: SCPI command string to be sent to the instrument
         :returns: String ASCII response of the instrument
         """
+
         self.write(command)
         return self.read()
 
@@ -70,6 +71,7 @@ class Adapter(object):
         """
         results = str(self.ask(command)).strip()
         results = results.split(separator)
+
         for i, result in enumerate(results):
             try:
                 if cast == bool:

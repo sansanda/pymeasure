@@ -178,6 +178,7 @@ class Instrument(object):
                     'Values of type `{}` are not allowed '
                     'for Instrument.control'.format(type(values))
                 )
+
             self.write(set_command % value)
             if check_set_errors:
                 self.check_errors()
