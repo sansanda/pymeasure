@@ -103,6 +103,49 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     """
 
+    FUNCTIONS = {
+        'current': 'CURR:DC',
+        'current ac': 'CURR:AC',
+        'voltage': 'VOLT:DC',
+        'voltage ac': 'VOLT:AC',
+        'resistance': 'RES',
+        'resistance 4W': 'FRES',
+        'diode': 'DIOD',
+        'capacitance': 'CAP',
+        'temperature': 'TEMP',
+        'continuity': 'CONT',
+        'frequency': 'FREQ',
+        'period': 'PER',
+        'voltage dc ratio': 'VOLT:DC:RATIO',
+        'digitize voltage':'DIG:VOLT',
+        'digitize current':'DIG:CURR'
+    }
+
+    mode = Instrument.control(
+        ":SENS:FUNC?\n", "SENS:FUNC %s\n",
+        """ A string property that controls the configuration mode for measurements,
+        which can take the values: 
+        :code:'current' (DC), 
+        :code:'current ac',
+        :code:'voltage' (DC),  
+        :code:'voltage ac', 
+        :code:'resistance' (2-wire),
+        :code:'resistance 4W' (4-wire), 
+        :code:'period', 
+        :code:'frequency',
+        :code:'temperature', 
+        :code:'diode', 
+        :code:'capacitance',
+        :code:'voltage dc ratio',
+        :code:'digitize voltage',
+        :code:'digitize current' and
+        :code:'continutity' """,
+        validator=strict_discrete_set,
+        values=FUNCTIONS,
+        map_values=True,
+        get_process=lambda v: v.replace('"', '')
+    )
+
     # list of lists on every list has the description parameters of the cards installed in the instrument
     # p.e: [7700.0, '20Ch Mux w/CJC', '0.0.0a', 1324982.0] at CARDSLIST_VALUES[0] if a 7700 is plugged to the slot 1 of the daq6510
     # p.e: ['Empty Slot'] at CARDSLIST_VALUES[1] is none is plugged to the slot 2 of the daq6510
@@ -137,6 +180,42 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         values=CHANNELSLIST_VALUES,
         check_set_errors=True
     )
+
+    ###############
+    # Voltage (V) #
+    ###############
+
+    voltage = Instrument.measurement(":READ?\n",
+                                     """ Reads the voltage in Volts, if configured for this reading.
+                                     """
+                                     )
+
+    voltage_range = Instrument.control(
+        ":SENS:VOLT:RANG?\n", ":SENS:VOLT:RANG:AUTO 0;:SENS:VOLT:RANG %g\n",
+        """ A floating point property that controls the measurement voltage
+        range in Volts, which can take values from 100mV to 1000 V.
+        Auto-range is disabled when this property is set. """,
+        validator=truncated_range,
+        values=[0.1, 1000]
+    )
+
+    voltage_ac_range = Instrument.control(
+        ":SENS:VOLT:AC:RANG?\n", ":SENS:VOLT:RANG:AUTO 0;:SENS:VOLT:AC:RANG %g\n",
+        """ A floating point property that controls the AC voltage range in
+        Volts, which can take values from 100mV to 750 V.
+        Auto-range is disabled when this property is set. """,
+        validator=truncated_range,
+        values=[0.1, 750]
+    )
+
+    voltage_nplc = Instrument.control(
+        ":SENS:VOLT:NPLC?\n", ":SENS:VOLT:NPLC %g\n",
+        """ A floating point property that controls the number of power line cycles
+        (NPLC) for the DC voltage measurements, which sets the integration period
+        and measurement speed. Takes values from 0.01 to 10, where 0.1, 1, and 10 are
+        Fast, Medium, and Slow respectively. """
+    )
+
 
     def get_state_of_channels(self, channels):  # ok
         """ Get the open or closed state of the specified channels
@@ -487,3 +566,22 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     def clear_display(self):#ok
         self.write(':DISPlay:CLEar\n')
+
+    ###########
+    # MEASURE #
+    ###########
+
+    def measure_voltage(self, max_voltage=1, ac=False):
+        """ Configures the instrument to measure voltage,
+        based on a maximum voltage to set the range, and
+        a boolean flag to determine if DC or AC is required.
+
+        :param max_voltage: A voltage in Volts to set the voltage range
+        :param ac: False for DC voltage, and True for AC voltage
+        """
+        if ac:
+            self.mode = 'voltage ac'
+            #self.voltage_ac_range = max_voltage
+        else:
+            self.mode = 'voltage'
+            #self.voltage_range = max_voltage
