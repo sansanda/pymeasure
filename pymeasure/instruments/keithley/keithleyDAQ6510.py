@@ -23,77 +23,25 @@
 #
 
 import logging
-
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
-
-from pymeasure.instruments import Instrument
-from pymeasure.instruments.validators import truncated_range, strict_discrete_set
-
-from pymeasure.instruments.keithley.buffer import KeithleyBuffer
-
 import numpy as np
 import time
 from io import BytesIO
 import re
 
+log = logging.getLogger(__name__)
+log.addHandler(logging.NullHandler())
 
-def clist_validator(value, values):  # ok
-    """ Provides a validator function that returns a valid clist string
-    for channel commands of the Keithley DAQ6510. Otherwise it raises a
-    ValueError.
+from pymeasure.instruments import Instrument
+from pymeasure.instruments.keithley.buffer import KeithleyBuffer
 
-    :param value: A value to test
-    :param values: A range of values (range, list, etc.)
-    :raises: ValueError if the value is out of the range
-
-    For example
-    """
-    # Convert value to list of strings
-    if isinstance(value, str):
-        clist = [value.strip(" @(),")]
-    elif isinstance(value, (int, float, np.int32)):
-        clist = ["{:d}".format(value)]
-    elif isinstance(value, (list, tuple, np.ndarray, range)):
-        clist = ["{:d}".format(x) for x in value]
-    else:
-        raise ValueError("Type of value ({}) not valid".format(type(value)))
-
-    # Pad numbers to length (if required)
-    clist = [c.rjust(2, "0") for c in clist]
-    clist = [c.rjust(3, "1") for c in clist]
-
-    # print(clist)
-    # print('values',values)
-    # print(value)
-
-    # Check channels against valid channels
-    for c in clist:
-        if int(c) not in values:
-            raise ValueError("Channel number %s not valid." % c)
-
-    # Convert list of strings to clist format
-    clist = "(@{:s})".format(", ".join(clist))
-
-    return clist
-
-
-def text_length_validator(value, values):
-    """ Provides a validator function that a valid string for the display
-    commands of the Keithley. Raises a TypeError if value is not a string.
-    If the string is too long, it is truncated to the correct length.
-
-    :param value: A value to test
-    :param values: The allowed length of the text
-    """
-
-    if not isinstance(value, str):
-        raise TypeError("Value is not a string.")
-
-    return value[:values]
+from pymeasure.instruments.validators import text_length_validator
+from pymeasure.instruments.validators import clist_validator
+from pymeasure.instruments.validators import truncated_range, strict_discrete_set
+from pymeasure.instruments.validators import joined_validators_values
 
 
 class KeithleyDAQ6510(Instrument, KeithleyBuffer):
+
     """ Represents the Keithely DAQ6510 Multimeter/Switch System and provides a
     high-level interface for interacting with the instrument.
 
@@ -120,31 +68,6 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         'digitize voltage':'DIG:VOLT',
         'digitize current':'DIG:CURR'
     }
-
-    mode = Instrument.control(
-        ":SENS:FUNC?\n", "SENS:FUNC %s\n",
-        """ A string property that controls the configuration mode for measurements,
-        which can take the values: 
-        :code:'current' (DC), 
-        :code:'current ac',
-        :code:'voltage' (DC),  
-        :code:'voltage ac', 
-        :code:'resistance' (2-wire),
-        :code:'resistance 4W' (4-wire), 
-        :code:'period', 
-        :code:'frequency',
-        :code:'temperature', 
-        :code:'diode', 
-        :code:'capacitance',
-        :code:'voltage dc ratio',
-        :code:'digitize voltage',
-        :code:'digitize current' and
-        :code:'continutity' """,
-        validator=strict_discrete_set,
-        values=FUNCTIONS,
-        map_values=True,
-        get_process=lambda v: v.replace('"', '')
-    )
 
     # list of lists on every list has the description parameters of the cards installed in the instrument
     # p.e: [7700.0, '20Ch Mux w/CJC', '0.0.0a', 1324982.0] at CARDSLIST_VALUES[0] if a 7700 is plugged to the slot 1 of the daq6510
@@ -179,6 +102,31 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         validator=clist_validator,
         values=CHANNELSLIST_VALUES,
         check_set_errors=True
+    )
+
+    mode = Instrument.control(
+        ":SENS:FUNC?\n", "SENS:FUNC %s\n",
+        """ A string property that controls the configuration mode for measurements,
+        which can take the values: 
+        :code:'current' (DC), 
+        :code:'current ac',
+        :code:'voltage' (DC),  
+        :code:'voltage ac', 
+        :code:'resistance' (2-wire),
+        :code:'resistance 4W' (4-wire), 
+        :code:'period', 
+        :code:'frequency',
+        :code:'temperature', 
+        :code:'diode', 
+        :code:'capacitance',
+        :code:'voltage dc ratio',
+        :code:'digitize voltage',
+        :code:'digitize current' and
+        :code:'continutity' """,
+        validator=joined_validators_values(strict_discrete_set,clist_validator),
+        values=(FUNCTIONS.values(), CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
     )
 
     ###############
@@ -223,7 +171,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :param channels: a list of channel numbers, or single channel number
         """
         clist = clist_validator(channels, self.CHANNELSLIST_VALUES)
-        # print("ROUTe:MULTiple:STATe? %s" % clist + '\n')
+        #print("ROUTe:MULTiple:STATe? %s" % clist + '\n')
         state = self.ask("ROUTe:STATe? %s" % clist + '\n')
         # print(state)
         return state
@@ -239,7 +187,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         self.check_errors()
         self.determine_installed_cards()
         self.determine_valid_channels()
-        # print(self.CHANNELSLIST_VALUES)
+        #print(self.CHANNELSLIST_VALUES)
         self.close_individual_channels('all')
         self.open_individual_channels((1,2))
         self.display_closed_channels(0,50)
@@ -406,7 +354,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         if slot is not None:
             channels += 100 * slot
 
-        print(channels)
+        #print(channels)
         return channels
 
     # system, some taken from Keithley DAQ6510
@@ -571,11 +519,12 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     # MEASURE #
     ###########
 
-    def measure_voltage(self, max_voltage=1, ac=False):
+    def measure_voltage(self, channels, max_voltage=1, ac=False):
         """ Configures the instrument to measure voltage,
         based on a maximum voltage to set the range, and
         a boolean flag to determine if DC or AC is required.
 
+        :param channels: an int, list or tuple containing the channels where measure the voltage
         :param max_voltage: A voltage in Volts to set the voltage range
         :param ac: False for DC voltage, and True for AC voltage
         """
@@ -583,5 +532,5 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
             self.mode = 'voltage ac'
             #self.voltage_ac_range = max_voltage
         else:
-            self.mode = 'voltage'
+            self.mode = self.FUNCTIONS.get('voltage'), channels
             #self.voltage_range = max_voltage

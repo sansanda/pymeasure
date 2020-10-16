@@ -23,7 +23,62 @@
 #
 
 from decimal import Decimal
+import numpy as np
 
+
+def clist_validator(value, values):  # ok
+    """ Provides a validator function that returns a valid clist string
+    for channel commands of the Keithley DAQ6510. Otherwise it raises a
+    ValueError.
+
+    :param value: A value to test
+    :param values: A range of values (range, list, etc.)
+    :raises: ValueError if the value is out of the range
+
+    For example
+    """
+    # Convert value to list of strings
+    if isinstance(value, str):
+        clist = [value.strip(" @(),")]
+    elif isinstance(value, (int, float, np.int32)):
+        clist = ["{:d}".format(value)]
+    elif isinstance(value, (list, tuple, np.ndarray, range)):
+        clist = ["{:d}".format(x) for x in value]
+    else:
+        raise ValueError("Type of value ({}) not valid".format(type(value)))
+
+    # Pad numbers to length (if required)
+    clist = [c.rjust(2, "0") for c in clist]
+    clist = [c.rjust(3, "1") for c in clist]
+
+    #print(clist)
+    # print('values',values)
+    # print(value)
+
+    # Check channels against valid channels
+    for c in clist:
+        if int(c) not in values:
+            raise ValueError("Channel number %s not valid." % c)
+
+    # Convert list of strings to clist format
+    clist = "(@{:s})".format(", ".join(clist))
+
+    return clist
+
+
+def text_length_validator(value, values):
+    """ Provides a validator function that a valid string for the display
+    commands of the Keithley. Raises a TypeError if value is not a string.
+    If the string is too long, it is truncated to the correct length.
+
+    :param value: A value to test
+    :param values: The allowed length of the text
+    """
+
+    if not isinstance(value, str):
+        raise TypeError("Value is not a string.")
+
+    return value[:values]
 
 def strict_range(value, values):
     """ Provides a validator function that returns the value
@@ -72,13 +127,14 @@ def strict_discrete_set(value, values):
     :param values: A set of values that are valid
     :raises: ValueError if the value is not in the set
     """
+    test = value in values
+    print(test)
     if value in values:
         return value
     else:
         raise ValueError('Value of {} is not in the discrete set {}'.format(
             value, values
         ))
-
 
 def truncated_range(value, values):
     """ Provides a validator function that returns the value
@@ -139,6 +195,18 @@ def truncated_discrete_set(value, values):
     return values[-1]
 
 
+def discreteTruncate(number, discreteSet):
+    """ Truncates the number to the closest element in the positive discrete set.
+    Returns False if the number is larger than the maximum value or negative.
+    """
+    if number < 0:
+        return False
+    discreteSet.sort()
+    for item in discreteSet:
+        if number <= item:
+            return item
+    return False
+
 def joined_validators(*validators):
     """ Join a list of validators together as a single.
     Expects a list of validator functions and values.
@@ -156,15 +224,49 @@ def joined_validators(*validators):
 
     return validate
 
+def joined_validators_values(*validators_list):
+    """ Join a list of validators together as a single.
+    But, we will validate each value_to_validate with it corresponent valid_values list.
+    As a consequence validators list, values_to_validate list and valid_values list must to have the same size.
+    Expects a three lists: validator functions list, values_to_validate list and valid_values list.
 
-def discreteTruncate(number, discreteSet):
-    """ Truncates the number to the closest element in the positive discrete set.
-    Returns False if the number is larger than the maximum value or negative.
+    :param validators: an iterable of other validators
     """
-    if number < 0:
-        return False
-    discreteSet.sort()
-    for item in discreteSet:
-        if number <= item:
-            return item
-    return False
+
+    def validate(values_to_validate_list, valid_values_list):
+        result = ''
+        for validator, values_to_validate, valid_values in zip(validators_list, values_to_validate_list, valid_values_list):
+            try:
+                result = result + validator(values_to_validate, valid_values) + " "
+            except (ValueError, TypeError):
+                pass
+        return result
+    return validate
+
+def test_validators():
+    jvv = joined_validators_values(clist_validator,strict_discrete_set)
+
+    values_to_validate_list = ([101,102,103],['voltage'])
+    valid_values_list = [
+        [101,102,103,104,105,106,107,108,109],
+        {
+        'current': 'CURR:DC',
+        'current ac': 'CURR:AC',
+        'voltage': 'VOLT:DC',
+        'voltage ac': 'VOLT:AC',
+        'resistance': 'RES',
+        'resistance 4W': 'FRES',
+        'diode': 'DIOD',
+        'capacitance': 'CAP',
+        'temperature': 'TEMP',
+        'continuity': 'CONT',
+        'frequency': 'FREQ',
+        'period': 'PER',
+        'voltage dc ratio': 'VOLT:DC:RATIO',
+        'digitize voltage': 'DIG:VOLT',
+        'digitize current': 'DIG:CURR'
+        }
+    ]
+    print(jvv(values_to_validate_list, valid_values_list))
+
+test_validators()
