@@ -127,8 +127,6 @@ def strict_discrete_set(value, values):
     :param values: A set of values that are valid
     :raises: ValueError if the value is not in the set
     """
-    test = value in values
-    print(test)
     if value in values:
         return value
     else:
@@ -244,9 +242,9 @@ def joined_validators_values(*validators_list):
     return validate
 
 def test_validators():
-    jvv = joined_validators_values(clist_validator,strict_discrete_set)
+    jvv = joined_validators_values(strict_discrete_set, clist_validator)
 
-    values_to_validate_list = ([101,102,103],['voltage'])
+    values_to_validate_list = (['voltage'], [101,102,103])
     valid_values_list = [
         [101,102,103,104,105,106,107,108,109],
         {
@@ -269,4 +267,16 @@ def test_validators():
     ]
     print(jvv(values_to_validate_list, valid_values_list))
 
-test_validators()
+try:
+    # coordinate = ['x', 'y', 'z']
+    # value = [3, 4, 5]
+    # object = ['o1','o2','o3']
+    #
+    # c,v,o = zip(coordinate,value,object)
+    # print(c)
+    # print(v)
+    # print(o)
+
+    test_validators()
+except ValueError:
+    print('error')
