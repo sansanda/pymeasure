@@ -7,14 +7,14 @@ k6510 = KeithleyDAQ6510(ea)
 
 
 
-while (True):
-    channels = [1,2,3,4]
 
-    v = k6510.measure_voltage(channels,max_voltage=10, ac=False)
-    #v = k6510.close_individual_channels([1,2])
+channels = [1,2,3,4]
 
-    #print(v)
-    time.sleep(1)
+k6510.reset()
+v = k6510.close_individual_channels(channels)
+v = k6510.config_and_measure_voltage(channels, max_voltage=10, ac=False, nplc=10)
+
+
 
 
 

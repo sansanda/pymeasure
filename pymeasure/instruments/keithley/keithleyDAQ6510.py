@@ -34,7 +34,7 @@ log.addHandler(logging.NullHandler())
 from pymeasure.instruments import Instrument
 from pymeasure.instruments.keithley.buffer import KeithleyBuffer
 
-from pymeasure.instruments.validators import text_length_validator
+from pymeasure.instruments.validators import text_length_validator, strict_range
 from pymeasure.instruments.validators import clist_validator
 from pymeasure.instruments.validators import truncated_range, strict_discrete_set
 from pymeasure.instruments.validators import joined_validators_values
@@ -52,21 +52,21 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     """
 
     FUNCTIONS = {
-        'current': 'CURR:DC',
-        'current ac': 'CURR:AC',
-        'voltage': 'VOLT:DC',
-        'voltage ac': 'VOLT:AC',
-        'resistance': 'RES',
-        'resistance 4W': 'FRES',
-        'diode': 'DIOD',
-        'capacitance': 'CAP',
-        'temperature': 'TEMP',
-        'continuity': 'CONT',
-        'frequency': 'FREQ',
-        'period': 'PER',
-        'voltage dc ratio': 'VOLT:DC:RATIO',
-        'digitize voltage':'DIG:VOLT',
-        'digitize current':'DIG:CURR'
+        'current': "'CURR:DC'",
+        'current ac': "'CURR:AC'",
+        'voltage': "'VOLT:DC'",
+        'voltage ac': "'VOLT:AC'",
+        'resistance': "'RES'",
+        'resistance 4W': "'FRES'",
+        'diode': "'DIOD'",
+        'capacitance': "'CAP'",
+        'temperature': "'TEMP'",
+        'continuity': "'CONT'",
+        'frequency': "'FREQ'",
+        'period': "'PER'",
+        'voltage dc ratio': "'VOLT:DC:RATIO'",
+        'digitize voltage': "'DIG:VOLT'",
+        'digitize current': "'DIG:CURR'"
     }
 
     # list of lists on every list has the description parameters of the cards installed in the instrument
@@ -104,6 +104,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         check_set_errors=True
     )
 
+
     mode = Instrument.control(
         ":SENS:FUNC?\n", "SENS:FUNC %s\n",
         """ A string property that controls the configuration mode for measurements,
@@ -123,11 +124,13 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :code:'digitize voltage',
         :code:'digitize current' and
         :code:'continutity' """,
-        validator=joined_validators_values(strict_discrete_set,clist_validator),
+        validator=joined_validators_values(strict_discrete_set,clist_validator, separator=","),
         values=(FUNCTIONS.values(), CHANNELSLIST_VALUES),
         map_values=False,
         get_process=lambda v: v.replace('"', '')
     )
+
+
 
     ###############
     # Voltage (V) #
@@ -156,13 +159,24 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         values=[0.1, 750]
     )
 
+    # voltage_nplc = Instrument.control(
+    #     ":SENS:VOLT:NPLC?\n", ":SENS:VOLT:NPLC %g\n",
+    #     """ A floating point property that controls the number of power line cycles
+    #     (NPLC) for the DC voltage measurements, which sets the integration period
+    #     and measurement speed. Takes values from 0.01 to 10, where 0.1, 1, and 10 are
+    #     Fast, Medium, and Slow respectively. """
+    # )
+
     voltage_nplc = Instrument.control(
-        ":SENS:VOLT:NPLC?\n", ":SENS:VOLT:NPLC %g\n",
-        """ A floating point property that controls the number of power line cycles
-        (NPLC) for the DC voltage measurements, which sets the integration period
-        and measurement speed. Takes values from 0.01 to 10, where 0.1, 1, and 10 are
-        Fast, Medium, and Slow respectively. """
+        ":SENS:VOLT:NPLC?\n", ":SENS:VOLT:NPLC %s\n",
+        """ A string property that controls the configuration nplc for measurements,
+        which can take the values: 0.0005 to 15 (60 Hz) or 12 (50 Hz or 400 Hz) """,
+        validator=joined_validators_values(strict_range,clist_validator,separator=','),
+        values=([0.0005,12], CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
     )
+
 
 
     def get_state_of_channels(self, channels):  # ok
@@ -187,10 +201,6 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         self.check_errors()
         self.determine_installed_cards()
         self.determine_valid_channels()
-        #print(self.CHANNELSLIST_VALUES)
-        self.close_individual_channels('all')
-        self.open_individual_channels((1,2))
-        self.display_closed_channels(0,50)
 
     def determine_installed_cards(self):  # ok
 
@@ -519,7 +529,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     # MEASURE #
     ###########
 
-    def measure_voltage(self, channels, max_voltage=1, ac=False):
+    def config_and_measure_voltage(self, channels, max_voltage=1, ac=False, nplc=1):
         """ Configures the instrument to measure voltage,
         based on a maximum voltage to set the range, and
         a boolean flag to determine if DC or AC is required.
@@ -528,9 +538,15 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :param max_voltage: A voltage in Volts to set the voltage range
         :param ac: False for DC voltage, and True for AC voltage
         """
+
+
         if ac:
             self.mode = 'voltage ac'
             #self.voltage_ac_range = max_voltage
         else:
+            self.voltage_nplc = nplc, channels
             self.mode = self.FUNCTIONS.get('voltage'), channels
+
             #self.voltage_range = max_voltage
+
+

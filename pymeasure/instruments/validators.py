@@ -127,8 +127,6 @@ def strict_discrete_set(value, values):
     :param values: A set of values that are valid
     :raises: ValueError if the value is not in the set
     """
-    test = value in values
-    print(test)
     if value in values:
         return value
     else:
@@ -224,7 +222,7 @@ def joined_validators(*validators):
 
     return validate
 
-def joined_validators_values(*validators_list):
+def joined_validators_values(*validators_list, separator=","):
     """ Join a list of validators together as a single.
     But, we will validate each value_to_validate with it corresponent valid_values list.
     As a consequence validators list, values_to_validate list and valid_values list must to have the same size.
@@ -237,19 +235,15 @@ def joined_validators_values(*validators_list):
         result = ''
         for validator, values_to_validate, valid_values in zip(validators_list, values_to_validate_list, valid_values_list):
             try:
-                result = result + validator(values_to_validate, valid_values) + " "
-            except (ValueError, TypeError):
+                result = result + str(validator(values_to_validate, valid_values)) + separator
+            except ValueError as e:
+                print(str(e))
                 pass
-        return result
+        return result[:-1]
     return validate
 
 def test_validators():
-    jvv = joined_validators_values(clist_validator,strict_discrete_set)
-
-    values_to_validate_list = ([101,102,103],['voltage'])
-    valid_values_list = [
-        [101,102,103,104,105,106,107,108,109],
-        {
+    modes = {
         'current': 'CURR:DC',
         'current ac': 'CURR:AC',
         'voltage': 'VOLT:DC',
@@ -265,8 +259,24 @@ def test_validators():
         'voltage dc ratio': 'VOLT:DC:RATIO',
         'digitize voltage': 'DIG:VOLT',
         'digitize current': 'DIG:CURR'
-        }
+    }
+
+    jvv = joined_validators_values(strict_discrete_set, clist_validator)
+
+
+    values_to_validate_list = (modes.get('voltage'),[101,102,103])
+    valid_values_list = [
+        modes.values(), [101,102,103,104,105,106,107,108,109]
+
     ]
     print(jvv(values_to_validate_list, valid_values_list))
 
-test_validators()
+    jvv2 = joined_validators_values(strict_range, clist_validator)
+    values_to_validate_list = (1, [101, 102, 103])
+    valid_values_list = [
+        [0.0005,12], [101, 102, 103, 104, 105, 106, 107, 108, 109]
+
+    ]
+    print(jvv2(values_to_validate_list, valid_values_list))
+
+#test_validators()
