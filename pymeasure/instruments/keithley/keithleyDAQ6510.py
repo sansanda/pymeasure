@@ -51,6 +51,90 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     """
 
+    #TODO: VALID_RANGES
+    VALID_RANGES = {
+        'current': [0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 3],
+        'current ac': [0.0001, 0.001, 0.01, 0.1, 1, 3],
+        'voltage': [0.1, 1, 10, 100, 1000],
+        'voltage ac': [0.1, 1, 10, 100, 750],
+        'resistance': "'RES'",
+        'resistance 4W': "'FRES'",
+        'diode': "'DIOD'",
+        'capacitance': "'CAP'",
+        'temperature': "'TEMP'",
+        'continuity': "'CONT'",
+        'frequency': "'FREQ'",
+        'period': "'PER'",
+        'voltage dc ratio': "'VOLT:DC:RATIO'",
+        'digitize voltage': "'DIG:VOLT'",
+        'digitize current': "'DIG:CURR'"
+    }
+
+
+
+
+    2 - wire
+    resistance
+    10
+    Ω, 100
+    Ω, 1
+    kΩ, 10
+    kΩ, 100
+    kΩ, 1
+    MΩ, 10
+    MΩ, 100
+    MΩ
+    4 - wire
+    resistance
+    with offset 1 Ω, 10 Ω, 100 Ω, 1 kΩ, 10 kΩ, 100 kΩ, 1 MΩ, 10 MΩ, 100 MΩ
+    compensation
+    off
+    4 - wire
+    resistance
+    with offset 1 Ω, 10 Ω, 100 Ω, 1 kΩ, 10 kΩ
+    compensation
+    on
+    Continuity
+    1
+    kΩ(fixed)
+    Diode
+    10
+    V(fixed)
+    Capacitance
+    1
+    nF, 10
+    nF, 100
+    nF, 1
+    µF, 10
+    µF, 100
+    µF
+    DC
+    voltage
+    ratio
+    100
+    mV, 1
+    V, 10
+    V, 100
+    V, 1000
+    V
+    Digitize
+    voltage
+    100
+    mV, 1
+    V, 10
+    V, 100
+    V, 1000
+    V
+    Digitize
+    current
+    100
+    µA, 1
+    mA, 10
+    mA, 100
+    mA, 1
+    A, 3
+    A
+
     FUNCTIONS = {
         'current': "'CURR:DC'",
         'current ac': "'CURR:AC'",
@@ -78,6 +162,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     # at CHANNELSLIST_VALUES[0] is a 7700 card is pugged to the slot 1 of the instrument
     CHANNELSLIST_VALUES = list()
 
+
     # Routing commands
     closed_channels = Instrument.control(
         "ROUTe:MULTiple:CLOSe?\n", "ROUTe:MULTiple:CLOSe %s\n",
@@ -104,10 +189,13 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         check_set_errors=True
     )
 
+    #####################
+    #  SENSE  COMMANDS  #
+    #####################
 
-    mode = Instrument.control(
+    function = Instrument.control(
         ":SENS:FUNC?\n", "SENS:FUNC %s\n",
-        """ A string property that controls the configuration mode for measurements,
+        """ A string property that controls the configuration mode (function) for measurements,
         which can take the values: 
         :code:'current' (DC), 
         :code:'current ac',
@@ -130,18 +218,56 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         get_process=lambda v: v.replace('"', '')
     )
 
+    def set_sense_function(self, function, channels):
+        """ Configures the instrument to sense on channels parameter as the function parameter indicates.
+
+        :param function: an str with the sense function. Could be 'voltage' for VOLT:DC or 'voltage ac' for VOLT:AC, etc...
+        :param channels: an int, list or tuple containing the channels to be set
+        """
+        # TODO: check set_sense_function method
+        self.function = self.FUNCTIONS.get(function), channels
+
+    def get_sense_function(self, channels):
+        """ Get the instrument sense configuration."""
+        # TODO: get_sense_function method
+        return self.function
+
+    def set_sense_range(self, range, channels):
+        """ Configures the instrument to sense on channels parameter as the function parameter indicates.
+
+        :param range: a float with the range.
+        :param channels: an int, list or tuple containing the channelsto be set
+        """
+        # TODO: set_sense_range method
+
+        channels_function = self.get_sense_function(channels)
+        for channel_function in channels_function:
+            pass
+
+        #self.voltage_dc_range = range, channels
+        #self.voltage_ac_range = range, channels
+
+    def get_sense_range(self, channels):
+        """ Get the instrument range configuration."""
+        # TODO: get_sense_range method
+        return None
+
+        #return self.
+
+    #Measure specific commands
+    #like read, trigger, trace, etc..
+
+    read_measure = Instrument.measurement(":READ?\n",
+                                     """ Reads the voltage in Volts, if configured for this reading.
+                                     """
+                                          )
 
 
     ###############
     # Voltage (V) #
     ###############
 
-    voltage = Instrument.measurement(":READ?\n",
-                                     """ Reads the voltage in Volts, if configured for this reading.
-                                     """
-                                     )
-
-    voltage_range = Instrument.control(
+    voltage_dc_range = Instrument.control(
         ":SENS:VOLT:RANG?\n", ":SENS:VOLT:RANG:AUTO 0;:SENS:VOLT:RANG %g\n",
         """ A floating point property that controls the measurement voltage
         range in Volts, which can take values from 100mV to 1000 V.
@@ -159,15 +285,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         values=[0.1, 750]
     )
 
-    # voltage_nplc = Instrument.control(
-    #     ":SENS:VOLT:NPLC?\n", ":SENS:VOLT:NPLC %g\n",
-    #     """ A floating point property that controls the number of power line cycles
-    #     (NPLC) for the DC voltage measurements, which sets the integration period
-    #     and measurement speed. Takes values from 0.01 to 10, where 0.1, 1, and 10 are
-    #     Fast, Medium, and Slow respectively. """
-    # )
-
-    voltage_nplc = Instrument.control(
+    voltage_dc_nplc = Instrument.control(
         ":SENS:VOLT:NPLC?\n", ":SENS:VOLT:NPLC %s\n",
         """ A string property that controls the configuration nplc for measurements,
         which can take the values: 0.0005 to 15 (60 Hz) or 12 (50 Hz or 400 Hz) """,
@@ -176,6 +294,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         map_values=False,
         get_process=lambda v: v.replace('"', '')
     )
+
 
 
 
@@ -194,13 +313,6 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         """ Open all channels of the Keithley DAQ6510.
         """
         self.write(":ROUTe:OPEN:ALL\n")
-
-    def __init__(self, adapter, **kwargs):
-        super(KeithleyDAQ6510, self).__init__(adapter, "Keithley DAQ 6510 MultiMeter/Switch System", **kwargs)
-        self.reset()
-        self.check_errors()
-        self.determine_installed_cards()
-        self.determine_valid_channels()
 
     def determine_installed_cards(self):  # ok
 
@@ -526,7 +638,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         self.write(':DISPlay:CLEar\n')
 
     ###########
-    # MEASURE #
+    # COMBOS  #
     ###########
 
     def config_and_measure_voltage(self, channels, max_voltage=1, ac=False, nplc=1):
@@ -539,14 +651,27 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :param ac: False for DC voltage, and True for AC voltage
         """
 
+        #TODO: config_and_measure_voltage method
 
+        self.reset()
         if ac:
-            self.mode = 'voltage ac'
-            #self.voltage_ac_range = max_voltage
+            self.function = 'voltage ac'
+            self.voltage_ac_range = max_voltage
         else:
-            self.voltage_nplc = nplc, channels
-            self.mode = self.FUNCTIONS.get('voltage'), channels
+            self.function = self.FUNCTIONS.get('voltage'), channels
+            self.voltage_dc_range = max_voltage
+            self.voltage_dc_nplc = 10, channels
 
-            #self.voltage_range = max_voltage
 
+    ################
+    # CONSTRUCTOR  #
+    ################
+
+    def __init__(self, adapter, **kwargs):
+
+        super(KeithleyDAQ6510, self).__init__(adapter, "Keithley DAQ 6510 MultiMeter/Switch System", **kwargs)
+        self.reset()
+        self.check_errors()
+        self.determine_installed_cards()
+        self.determine_valid_channels()
 

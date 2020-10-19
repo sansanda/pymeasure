@@ -166,7 +166,6 @@ class Instrument(object):
                 return vals
 
         def fset(self, value):
-
             value = set_process(validator(value, values))
             if not map_values:
                 pass

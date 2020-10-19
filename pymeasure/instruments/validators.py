@@ -279,4 +279,4 @@ def test_validators():
     ]
     print(jvv2(values_to_validate_list, valid_values_list))
 
-#test_validators()
+test_validators()

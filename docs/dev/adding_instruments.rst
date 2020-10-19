@@ -150,6 +150,11 @@ We can use this property to set the voltage to 100 mV, which will execute the co
 .. doctest::
 
     >>> extreme = Extreme5000("GPIB::1")
+        >>> extreme.read_measure = 0.1        # Executes ":VOLT 0.1"
+        >>> extreme.voltage              # Reads ":VOLT?"
+        0.1
+
+    Using both of these functions, you can create a number of properties for basic measurements and controls. The next section details additional features of
     >>> extreme.voltage = 0.1        # Executes ":VOLT 0.1"
     >>> extreme.voltage              # Reads ":VOLT?"
     0.1
@@ -192,6 +197,12 @@ Now our voltage will raise a ValueError if the value is out of the range.
 .. doctest::
 
     >>> extreme = Extreme5000("GPIB::1")
+        >>> extreme.read_measure = 100
+        Traceback (most recent call last):
+        ...
+        ValueError: Value of 100 is not in range [-1,1]
+
+    This is useful if you want to alert the programmer that they are using an invalid value. However, sometimes it can be nicer to truncate the value to be within the range.
     >>> extreme.voltage = 100
     Traceback (most recent call last):
     ...
@@ -215,6 +226,9 @@ Now our voltage will not raise an error, and will truncate the value to the rang
 .. doctest::
 
     >>> extreme = Extreme5000("GPIB::1")
+        >>> extreme.read_measure = 100        # Executes ":VOLT 1"
+        >>> extreme.voltage
+        1.0
     >>> extreme.voltage = 100        # Executes ":VOLT 1"  
     >>> extreme.voltage
     1.0
@@ -242,6 +256,9 @@ Now we can set the voltage range, which will automatically truncate to an approp
 .. doctest::
 
     >>> extreme = Extreme5000("GPIB::1")
+        >>> extreme.read_measure = 0.08
+        >>> extreme.voltage
+        0.1
     >>> extreme.voltage = 0.08
     >>> extreme.voltage
     0.1
@@ -271,6 +288,30 @@ Now the actual GPIB/SCIP command is ":RANG 1" for a value of 100 mV, since the i
 .. doctest::
 
     >>> extreme = Extreme5000("GPIB::1")
+        >>> extreme.read_measure = 100e-3
+        >>> extreme.read()
+        '1'
+        >>> extreme.voltage = 1
+        >>> extreme.voltage
+        1
+
+    Dictionaries provide a more flexible method for mapping between real-values and those required by the instrument. If instead the
+        >>> extreme.voltage = 100e-3
+        >>> extreme.read()
+        '1'
+        >>> extreme.read_measure = 1
+        >>> extreme.voltage
+        1
+
+    Dictionaries provide a more flexible method for mapping between real-values and those required by the instrument. If instead the
+        >>> extreme.voltage = 100e-3
+        >>> extreme.read()
+        '1'
+        >>> extreme.read_measure = 1
+        >>> extreme.voltage
+        1
+
+    Dictionaries provide a more flexible method for mapping between real-values and those required by the instrument. If instead the
     >>> extreme.voltage = 100e-3
     >>> extreme.read()
     '1'
@@ -295,6 +336,30 @@ Dictionaries provide a more flexible method for mapping between real-values and 
 .. doctest::
 
     >>> extreme = Extreme5000("GPIB::1")
+        >>> extreme.read_measure = 10e-3
+        >>> extreme.read()
+        '1'
+        >>> extreme.voltage = 100e-3
+        >>> extreme.voltage
+        0.1
+
+    The dictionary now maps the keys to specific values. The values and keys can be any type, so this can support properties that use strings:
+        >>> extreme.voltage = 10e-3
+        >>> extreme.read()
+        '1'
+        >>> extreme.read_measure = 100e-3
+        >>> extreme.voltage
+        0.1
+
+    The dictionary now maps the keys to specific values. The values and keys can be any type, so this can support properties that use strings:
+        >>> extreme.voltage = 10e-3
+        >>> extreme.read()
+        '1'
+        >>> extreme.read_measure = 100e-3
+        >>> extreme.voltage
+        0.1
+
+    The dictionary now maps the keys to specific values. The values and keys can be any type, so this can support properties that use strings:
     >>> extreme.voltage = 10e-3
     >>> extreme.read()
     '1'
