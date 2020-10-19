@@ -57,83 +57,37 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         'current ac': [0.0001, 0.001, 0.01, 0.1, 1, 3],
         'voltage': [0.1, 1, 10, 100, 1000],
         'voltage ac': [0.1, 1, 10, 100, 750],
-        'resistance': "'RES'",
-        'resistance 4W': "'FRES'",
-        'diode': "'DIOD'",
-        'capacitance': "'CAP'",
-        'temperature': "'TEMP'",
-        'continuity': "'CONT'",
-        'frequency': "'FREQ'",
-        'period': "'PER'",
-        'voltage dc ratio': "'VOLT:DC:RATIO'",
-        'digitize voltage': "'DIG:VOLT'",
-        'digitize current': "'DIG:CURR'"
+        'resistance': [10, 100, 1000,10000,1000000,10000000,100000000],
+        'resistance 4W': [],
+        'diode': [10],
+        'capacitance': [0.000000001, 0.00000001,0.0000001,0.000001, 0.00001, 0.0001],
+        'temperature': [],
+        'continuity': [1000],
+        'frequency': [],
+        'period': [],
+        'voltage dc ratio': [0.1,1,10,100,1000],
+        'digitize voltage': [0.1,1,10,100,1000],
+        'digitize current': [0.0001,0.001,0.01,0.1,1,3]
     }
 
+    # 4 - wire
+    # resistance
+    # with offset 1 Ω, 10 Ω, 100 Ω, 1 kΩ, 10 kΩ, 100 kΩ, 1 MΩ, 10 MΩ, 100 MΩ
+    # compensation
+    # off
+    # 4 - wire
+    # resistance
+    # with offset 1 Ω, 10 Ω, 100 Ω, 1 kΩ, 10 kΩ
+    # compensation
+    # on
+    # Continuity
+    # 1
+    # kΩ(fixed)
+    # Diode
+    # 10
 
 
 
-    2 - wire
-    resistance
-    10
-    Ω, 100
-    Ω, 1
-    kΩ, 10
-    kΩ, 100
-    kΩ, 1
-    MΩ, 10
-    MΩ, 100
-    MΩ
-    4 - wire
-    resistance
-    with offset 1 Ω, 10 Ω, 100 Ω, 1 kΩ, 10 kΩ, 100 kΩ, 1 MΩ, 10 MΩ, 100 MΩ
-    compensation
-    off
-    4 - wire
-    resistance
-    with offset 1 Ω, 10 Ω, 100 Ω, 1 kΩ, 10 kΩ
-    compensation
-    on
-    Continuity
-    1
-    kΩ(fixed)
-    Diode
-    10
-    V(fixed)
-    Capacitance
-    1
-    nF, 10
-    nF, 100
-    nF, 1
-    µF, 10
-    µF, 100
-    µF
-    DC
-    voltage
-    ratio
-    100
-    mV, 1
-    V, 10
-    V, 100
-    V, 1000
-    V
-    Digitize
-    voltage
-    100
-    mV, 1
-    V, 10
-    V, 100
-    V, 1000
-    V
-    Digitize
-    current
-    100
-    µA, 1
-    mA, 10
-    mA, 100
-    mA, 1
-    A, 3
-    A
 
     FUNCTIONS = {
         'current': "'CURR:DC'",
