@@ -50,7 +50,19 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         keithley = KeithleyDAQ6510(Adapter)
 
     """
-
+    VALID_SCAN_START_STIMULUS = ['NONE',
+                                 'DISPlay',
+                                 'NOTify1','NOTify2','NOTify3',
+                                 'COMMand',
+                                 'DIGio1','DIGio2','DIGio3','DIGio4','DIGio5','DIGio6',
+                                 'TSPLink1','TSPLink2','TSPLink3',
+                                 'LAN1','LAN2','LAN3','LAN4','LAN5','LAN6','LAN7','LAN8',
+                                 'BLENder1','BLENder2',
+                                 'TIMer1','TIMer2','TIMer3','TIMer4',
+                                 'EXTernal',
+                                 'SCANCHANnel','SCANCOMPlete','SCANMEASure','SCANALARmlimit']
+    VALID_SCAN_RESTART_PARAMS = ['ON','OFF']
+    VALID_SCAN_MODES = ['ALL','USED','ABR']
     VALID_SCAN_INTERVAL_RANGE = [0,100000] #(0 to 100 ks)
     VALID_SCAN_COUNT_RANGE = [0, 100000000]
     VALID_NPLC_RANGE = [0.0005, 12]
@@ -163,6 +175,48 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         separator=None,
         cast=float
     )
+
+    scan_mode = Instrument.control(
+        ":ROUTe:SCAN:MODE?\n", ":ROUTe:SCAN:MODE %s\n",
+        """ Parameter that controls the scan mode of a scan.""",
+        validator=strict_discrete_set,
+        values=VALID_SCAN_MODES,
+        check_get_errors=True,
+        check_set_errors=True,
+        separator=None
+    )
+
+    scan_restart = Instrument.control(
+        ":ROUTe:SCAN:RESTart?\n", ":ROUTe:SCAN:RESTart %s\n",
+        """ Parameter that controls the scan restart option of a scan.""",
+        validator=strict_discrete_set,
+        values=VALID_SCAN_RESTART_PARAMS,
+        check_get_errors=True,
+        check_set_errors=True,
+        separator=None
+    )
+
+    scan_start_stimulus = Instrument.control(
+        ":ROUTe:SCAN:STARt:STIMulus\n", ":ROUTe:SCAN:STARt:STIMulus %s\n",
+        """ Parameter that controls the scan restart option of a scan.""",
+        validator=strict_discrete_set,
+        values=VALID_SCAN_START_STIMULUS,
+        check_get_errors=True,
+        check_set_errors=True,
+        separator=None
+    )
+
+    def set_scan_start_stimulus(self, eventID):
+        self.scan_start_stimulus = eventID
+
+    def enable_scan_restart(self, enable):
+        self.scan_restart = enable
+
+    def set_scan_mode(self, mode):
+        """ Configure the scan mode parameter of an existing scan
+                :param mode: An str with the mode of the scan to be configured"""
+        self.scan_mode = mode
+
 
 
     def set_scan_interval(self,interval):
@@ -483,6 +537,30 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
         self.voltage_dc_nplc = nplc, channels
 
+    ###################
+    # COMMON COMMANDS #
+    ###################
+
+    def send_trg(self):
+        """
+
+        :return: None
+        """
+        self.write("*TRG\n")
+    #
+    # Introduction...............................................................................A - 1
+    # *CLS.........................................................................................A - 2
+    # *ESE.........................................................................................A - 2
+    # *ESR?.......................................................................................A - 4
+    # *IDN?........................................................................................A - 5
+    # *LANG......................................................................................A - 6
+    # *OPC........................................................................................A - 7
+    # *RST.........................................................................................A - 7
+    # *SRE.........................................................................................A - 8
+    # *STB?.......................................................................................A - 9
+    # *TRG........................................................................................A - 9
+    # *TST? .....................................................................................A - 10
+    # *WAI.......................................................................................A - 10
 
     ###################
     # SYSTEM COMMANDS #
