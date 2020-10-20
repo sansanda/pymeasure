@@ -34,7 +34,7 @@ log.addHandler(logging.NullHandler())
 from pymeasure.instruments import Instrument
 from pymeasure.instruments.keithley.buffer import KeithleyBuffer
 
-from pymeasure.instruments.validators import text_length_validator, strict_range
+from pymeasure.instruments.validators import text_length_validator, strict_range, strict_discrete_range
 from pymeasure.instruments.validators import clist_validator
 from pymeasure.instruments.validators import truncated_range, strict_discrete_set
 from pymeasure.instruments.validators import joined_validators_values
@@ -51,45 +51,29 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     """
 
-    #TODO: VALID_RANGES
+    VALID_SCAN_INTERVAL_RANGE = [0,100000] #(0 to 100 ks)
+    VALID_SCAN_COUNT_RANGE = [0, 100000000]
+    VALID_NPLC_RANGE = [0.0005, 12]
     VALID_RANGES = {
         'current': [0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 3],
         'current ac': [0.0001, 0.001, 0.01, 0.1, 1, 3],
         'voltage': [0.1, 1, 10, 100, 1000],
         'voltage ac': [0.1, 1, 10, 100, 750],
         'resistance': [10, 100, 1000,10000,1000000,10000000,100000000],
-        'resistance 4W': [],
-        'diode': [10],
+        'resistance 4W O-COMP': [1, 10, 100, 1000, 10000],
+        'resistance 4W NOT O-COMP': [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000],
+        'diode': [],
         'capacitance': [0.000000001, 0.00000001,0.0000001,0.000001, 0.00001, 0.0001],
         'temperature': [],
-        'continuity': [1000],
+        'continuity': [],
         'frequency': [],
         'period': [],
         'voltage dc ratio': [0.1,1,10,100,1000],
-        'digitize voltage': [0.1,1,10,100,1000],
-        'digitize current': [0.0001,0.001,0.01,0.1,1,3]
+        'digitize voltage': [],
+        'digitize current': []
     }
 
-    # 4 - wire
-    # resistance
-    # with offset 1 Ω, 10 Ω, 100 Ω, 1 kΩ, 10 kΩ, 100 kΩ, 1 MΩ, 10 MΩ, 100 MΩ
-    # compensation
-    # off
-    # 4 - wire
-    # resistance
-    # with offset 1 Ω, 10 Ω, 100 Ω, 1 kΩ, 10 kΩ
-    # compensation
-    # on
-    # Continuity
-    # 1
-    # kΩ(fixed)
-    # Diode
-    # 10
-
-
-
-
-    FUNCTIONS = {
+    SENSE_FUNCTIONS = {
         'current': "'CURR:DC'",
         'current ac': "'CURR:AC'",
         'voltage': "'VOLT:DC'",
@@ -116,8 +100,10 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     # at CHANNELSLIST_VALUES[0] is a 7700 card is pugged to the slot 1 of the instrument
     CHANNELSLIST_VALUES = list()
 
+    #####################
+    # ROUTING COMMANDS  #
+    #####################
 
-    # Routing commands
     closed_channels = Instrument.control(
         "ROUTe:MULTiple:CLOSe?\n", "ROUTe:MULTiple:CLOSe %s\n",
         """ Parameter that controls the opened and closed channels.
@@ -143,114 +129,59 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         check_set_errors=True
     )
 
-    #####################
-    #  SENSE  COMMANDS  #
-    #####################
-
-    function = Instrument.control(
-        ":SENS:FUNC?\n", "SENS:FUNC %s\n",
-        """ A string property that controls the configuration mode (function) for measurements,
-        which can take the values: 
-        :code:'current' (DC), 
-        :code:'current ac',
-        :code:'voltage' (DC),  
-        :code:'voltage ac', 
-        :code:'resistance' (2-wire),
-        :code:'resistance 4W' (4-wire), 
-        :code:'period', 
-        :code:'frequency',
-        :code:'temperature', 
-        :code:'diode', 
-        :code:'capacitance',
-        :code:'voltage dc ratio',
-        :code:'digitize voltage',
-        :code:'digitize current' and
-        :code:'continutity' """,
-        validator=joined_validators_values(strict_discrete_set,clist_validator, separator=","),
-        values=(FUNCTIONS.values(), CHANNELSLIST_VALUES),
-        map_values=False,
-        get_process=lambda v: v.replace('"', '')
+    create_scan = Instrument.control(
+        "ROUTe:SCAN:CREate?\n", "ROUTe:SCAN:CREate %s\n",
+        """ Parameter that controls the creation of a scan done the channels input parameter.""",
+        validator=clist_validator,
+        values=CHANNELSLIST_VALUES,
+        check_get_errors=True,
+        check_set_errors=True,
+        separator=None,
+        get_process=lambda v: [
+            int(vv) for vv in (v.strip(" ()@,").split(",")) if not vv == ""
+        ],
     )
 
-    def set_sense_function(self, function, channels):
-        """ Configures the instrument to sense on channels parameter as the function parameter indicates.
+    scan_count = Instrument.control(
+        "ROUTe:SCAN:CREate?\n", ":ROUTe:SCAN:COUNt:SCAN %d\n",
+        """ Parameter that controls the scan count of a scan.""",
+        validator=strict_range,
+        values=VALID_SCAN_COUNT_RANGE,
+        check_get_errors=True,
+        check_set_errors=True,
+        separator=None,
+        cast=int
+    )
 
-        :param function: an str with the sense function. Could be 'voltage' for VOLT:DC or 'voltage ac' for VOLT:AC, etc...
-        :param channels: an int, list or tuple containing the channels to be set
+    scan_interval = Instrument.control(
+        ":ROUTe:SCAN:INTerval?\n", ":ROUTe:SCAN:INTerval %f\n",
+        """ Parameter that controls the scan count of a scan.""",
+        validator=strict_range,
+        values=VALID_SCAN_INTERVAL_RANGE,
+        check_get_errors=True,
+        check_set_errors=True,
+        separator=None,
+        cast=float
+    )
+
+
+    def set_scan_interval(self,interval):
+        """ Configure the interval parameter of an existing scan
+        :param count: The count of the scan to be configured
         """
-        # TODO: check set_sense_function method
-        self.function = self.FUNCTIONS.get(function), channels
+        self.scan_interval = interval
 
-    def get_sense_function(self, channels):
-        """ Get the instrument sense configuration."""
-        # TODO: get_sense_function method
-        return self.function
-
-    def set_sense_range(self, range, channels):
-        """ Configures the instrument to sense on channels parameter as the function parameter indicates.
-
-        :param range: a float with the range.
-        :param channels: an int, list or tuple containing the channelsto be set
+    def set_scan_count(self,count):
+        """ Configure the count parameter of an existing scan
+        :param count: The count of the scan to be configured
         """
-        # TODO: set_sense_range method
+        self.scan_count = count
 
-        channels_function = self.get_sense_function(channels)
-        for channel_function in channels_function:
-            pass
-
-        #self.voltage_dc_range = range, channels
-        #self.voltage_ac_range = range, channels
-
-    def get_sense_range(self, channels):
-        """ Get the instrument range configuration."""
-        # TODO: get_sense_range method
-        return None
-
-        #return self.
-
-    #Measure specific commands
-    #like read, trigger, trace, etc..
-
-    read_measure = Instrument.measurement(":READ?\n",
-                                     """ Reads the voltage in Volts, if configured for this reading.
-                                     """
-                                          )
-
-
-    ###############
-    # Voltage (V) #
-    ###############
-
-    voltage_dc_range = Instrument.control(
-        ":SENS:VOLT:RANG?\n", ":SENS:VOLT:RANG:AUTO 0;:SENS:VOLT:RANG %g\n",
-        """ A floating point property that controls the measurement voltage
-        range in Volts, which can take values from 100mV to 1000 V.
-        Auto-range is disabled when this property is set. """,
-        validator=truncated_range,
-        values=[0.1, 1000]
-    )
-
-    voltage_ac_range = Instrument.control(
-        ":SENS:VOLT:AC:RANG?\n", ":SENS:VOLT:RANG:AUTO 0;:SENS:VOLT:AC:RANG %g\n",
-        """ A floating point property that controls the AC voltage range in
-        Volts, which can take values from 100mV to 750 V.
-        Auto-range is disabled when this property is set. """,
-        validator=truncated_range,
-        values=[0.1, 750]
-    )
-
-    voltage_dc_nplc = Instrument.control(
-        ":SENS:VOLT:NPLC?\n", ":SENS:VOLT:NPLC %s\n",
-        """ A string property that controls the configuration nplc for measurements,
-        which can take the values: 0.0005 to 15 (60 Hz) or 12 (50 Hz or 400 Hz) """,
-        validator=joined_validators_values(strict_range,clist_validator,separator=','),
-        values=([0.0005,12], CHANNELSLIST_VALUES),
-        map_values=False,
-        get_process=lambda v: v.replace('"', '')
-    )
-
-
-
+    def set_channels_scan(self, channels):  # ok
+        """ Create an scan done the channels input parameter
+        :param channels: a list of channel numbers to be included in the scan
+        """
+        self.create_scan = channels
 
     def get_state_of_channels(self, channels):  # ok
         """ Get the open or closed state of the specified channels
@@ -268,31 +199,6 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         """
         self.write(":ROUTe:OPEN:ALL\n")
 
-    def determine_installed_cards(self):  # ok
-
-        """ Determine what cards are intalled from the DAQ6510. """
-        self.CARDSLIST_VALUES.append(self.values("syst:card1:idn?\n", separator=","))
-        self.CARDSLIST_VALUES.append(self.values("syst:card2:idn?\n", separator=","))
-
-    def determine_valid_channels(self):  # ok
-
-        """ Determine what channels are valid from the installed cards. """
-        self.CHANNELSLIST_VALUES.clear()
-        for slotNumber, card in enumerate(self.CARDSLIST_VALUES, 1):
-            if str(card[0]) == 'Empty Slot':
-                continue
-            elif str(card[0]) == '7700.0':
-                # print(card)
-                """The 7700 is a 10(columns) x 2(rows) matrix card and two
-                #   AC-DC Current(21 & 22) channels and three additional switches (23, 24, 25)   
-                #   that allow row 1 and 2 to be connected to the DMM backplane (input and sense respectively).
-                #   """
-                channels = range(1, 23)
-            else:
-                log.warning("Card type %s at slot %s is not yet implemented." % (card, slotNumber))
-
-            channels = [100 * slotNumber + ch for ch in channels]
-            self.CHANNELSLIST_VALUES.extend(channels)
 
     def close_individual_channels(self, channels):
         """ Closes (connects) the channels of the cardModel connection matrix.
@@ -433,7 +339,196 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         #print(channels)
         return channels
 
-    # system, some taken from Keithley DAQ6510
+    #####################
+    #  SENSE  COMMANDS  #
+    #####################
+
+    sense_function = Instrument.control(
+        ":SENS:FUNC?\n", "SENS:FUNC %s\n",
+        """ A string property that controls the configuration mode (function) for measurements,
+        which can take the values: 
+        :code:'current' (DC), 
+        :code:'current ac',
+        :code:'voltage' (DC),  
+        :code:'voltage ac', 
+        :code:'resistance' (2-wire),
+        :code:'resistance 4W' (4-wire), 
+        :code:'period', 
+        :code:'frequency',
+        :code:'temperature', 
+        :code:'diode', 
+        :code:'capacitance',
+        :code:'voltage dc ratio',
+        :code:'digitize voltage',
+        :code:'digitize current' and
+        :code:'continutity' 
+        
+        Also gets the function of the active channel.""",
+        validator=joined_validators_values(strict_discrete_set,clist_validator, separatorsList=['',',']),
+        values=(SENSE_FUNCTIONS.values(), CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
+    )
+
+    all_channels_sense_function = Instrument.measurement('SENS:FUNC? (@allslots)\n',
+                                     """ Gets the sense function for all valid channels of the instrument""")
+
+
+
+    def set_sense_function(self, function, channels):
+        """ Configures the instrument to sense on channels parameter as the function parameter indicates.
+
+        :param function: an str with the sense function. Could be 'voltage' for VOLT:DC or 'voltage ac' for VOLT:AC, etc...
+        :param channels: an int, list or tuple containing the channels to be set
+        """
+
+        self.sense_function = self.SENSE_FUNCTIONS.get(function), channels
+
+    def get_active_channel_sense_function(self):
+        """ Get the sense configuration for the active channel."""
+        return self.sense_function
+
+    def get_allchannels_sense_function(self):
+
+        """ Get the sense configuration for all channels."""
+
+        channel_function_dict = dict()
+
+        nCards = self.getNCardsInstalled()
+
+        channels_function_list = self.all_channels_sense_function.split(';')
+
+        if nCards==1:
+            for index,channel_function in enumerate(channels_function_list):
+                channel_function_dict[101 + index] = channels_function_list[index]
+
+        if nCards==2:
+            n_channels_per_card = int(len(channels_function_list)/2)
+            for index,channel_function in enumerate(channels_function_list):
+                if 1 <= (index+1) <= n_channels_per_card:
+                    channel_function_dict[101 + index % n_channels_per_card] = channels_function_list[index]
+                else:
+                    channel_function_dict[201 + index % n_channels_per_card] = channels_function_list[index]
+
+        return channel_function_dict
+
+
+    #Measure specific commands
+    #like read, trigger, trace, etc..
+
+    read_measure = Instrument.measurement(":READ?\n",
+                                     """ Reads the voltage in Volts, if configured for this reading.
+                                     """
+                                          )
+
+
+    ###############
+    # Voltage (V) #
+    ###############
+
+    voltage_dc_range = Instrument.control(
+        ":SENS:VOLT:RANG?\n", ":SENS:VOLT:RANG:AUTO 0;:SENS:VOLT:RANG %g\n",
+        """ A floating point property that controls the measurement voltage
+        range in Volts, which can take values from 100mV to 1000 V.
+        Auto-range is disabled when this property is set. """,
+        validator=truncated_range,
+        values=[0.1, 1000]
+    )
+
+    voltage_ac_range = Instrument.control(
+        ":SENS:VOLT:AC:RANG?\n", ":SENS:VOLT:RANG:AUTO 0;:SENS:VOLT:AC:RANG %g\n",
+        """ A floating point property that controls the AC voltage range in
+        Volts, which can take values from 100mV to 750 V.
+        Auto-range is disabled when this property is set. """,
+        validator=truncated_range,
+        values=[0.1, 750]
+    )
+
+    voltage_dc_nplc = Instrument.control(
+        ":SENS:VOLT:NPLC?\n", ":SENS:VOLT:NPLC %s\n",
+        """ A string property that controls the configuration nplc for measurements,
+        which can take the values: 0.0005 to 15 (60 Hz) or 12 (50 Hz or 400 Hz) """,
+        validator=joined_validators_values(strict_range,clist_validator,separatorsList=['',',']),
+        values=(VALID_NPLC_RANGE, CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
+    )
+
+    voltage_dc_sense_range = Instrument.control(
+        ":SENS:VOLT:DC:RANG:UPP?\n",
+        "SENS:VOLT:DC:RANG:UPP %s\n",
+        """ A string property that controls the sense range of the given function.""",
+        validator=joined_validators_values(strict_range, clist_validator, separatorsList=['', ',']),
+        values=(VALID_RANGES.get('voltage'), CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
+    )
+
+
+    def set_voltage_dc_sense_range(self, channels, range):
+        """ Configures the instrument to sense on channels parameter as the function parameter indicates.
+
+        :param range: The value for the desired range
+        :param channels: a list or tuple containing the channels to be set the sense range
+        """
+
+        self.voltage_dc_sense_range = range, channels
+
+    def set_voltage_dc_nplc(self, channels, nplc):
+        """ Configures the instrument to sense on channels parameter as the function parameter indicates.
+
+        :param nplc: The value for the desired NPLC
+        :param channels: a list or tuple containing the channels to be set the nplc
+        """
+
+        self.voltage_dc_nplc = nplc, channels
+
+
+    ###################
+    # SYSTEM COMMANDS #
+    ###################
+
+    def reset(self):  # ok
+        """ Resets the instrument and clears the queue.  """
+        # self.write("status:queue:clear;*RST;:stat:pres;:*CLS;")
+        self.write("*RST;:stat:pres;:*CLS;\n")
+
+    def getNCardsInstalled(self):
+
+        nCards = 0
+        cards_list = self.CARDSLIST_VALUES
+
+        for card in cards_list:
+            if not ('Empty Slot' in card):
+                nCards += 1
+        return nCards
+
+    def determine_installed_cards(self):  # ok
+
+        """ Determine what cards are intalled from the DAQ6510. """
+        self.CARDSLIST_VALUES.append(self.values("syst:card1:idn?\n", separator=","))
+        self.CARDSLIST_VALUES.append(self.values("syst:card2:idn?\n", separator=","))
+
+    def determine_valid_channels(self):  # ok
+
+        """ Determine what channels are valid from the installed cards. """
+        self.CHANNELSLIST_VALUES.clear()
+        for slotNumber, card in enumerate(self.CARDSLIST_VALUES, 1):
+            if str(card[0]) == 'Empty Slot':
+                continue
+            elif str(card[0]) == '7700.0':
+                # print(card)
+                """The 7700 is a 10(columns) x 2(rows) matrix card and two
+                #   AC-DC Current(21 & 22) channels and three additional switches (23, 24, 25)   
+                #   that allow row 1 and 2 to be connected to the DMM backplane (input and sense respectively).
+                #   """
+                channels = range(1, 23)
+            else:
+                log.warning("Card type %s at slot %s is not yet implemented." % (card, slotNumber))
+
+            channels = [100 * slotNumber + ch for ch in channels]
+            self.CHANNELSLIST_VALUES.extend(channels)
+
     def beep(self, frequency, duration):#ok
         """ Sounds a system beep.
 
@@ -453,6 +548,11 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         self.beep(base_frequency * 5.0 / 4.0, duration)
         time.sleep(duration)
         self.beep(base_frequency * 6.0 / 4.0, duration)
+
+
+    ############################
+    # ERRORS HANDLING COMMANDS #
+    ############################
 
     @property
     def error(self):  # ok
@@ -476,11 +576,6 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
             code, message = self.error
             if (time.time() - t) > 10:
                 log.warning("Timed out for Keithley DAQ6510 error retrieval.")
-
-    def reset(self):  # ok
-        """ Resets the instrument and clears the queue.  """
-        # self.write("status:queue:clear;*RST;:stat:pres;:*CLS;")
-        self.write("*RST;:stat:pres;:*CLS;\n")
 
 
     ###########
@@ -609,10 +704,10 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
         self.reset()
         if ac:
-            self.function = 'voltage ac'
+            self.sense_function = 'voltage ac'
             self.voltage_ac_range = max_voltage
         else:
-            self.function = self.FUNCTIONS.get('voltage'), channels
+            self.sense_function = self.SENSE_FUNCTIONS.get('voltage'), channels
             self.voltage_dc_range = max_voltage
             self.voltage_dc_nplc = 10, channels
 
