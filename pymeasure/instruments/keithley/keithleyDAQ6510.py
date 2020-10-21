@@ -50,6 +50,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         keithley = KeithleyDAQ6510(Adapter)
 
     """
+
     VALID_SCAN_START_STIMULUS = ['NONE',
                                  'DISPlay',
                                  'NOTify1','NOTify2','NOTify3',
@@ -141,7 +142,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         check_set_errors=True
     )
 
-    create_scan = Instrument.control(
+    scan_create = Instrument.control(
         "ROUTe:SCAN:CREate?\n", "ROUTe:SCAN:CREate %s\n",
         """ Parameter that controls the creation of a scan done the channels input parameter.""",
         validator=clist_validator,
@@ -152,6 +153,15 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         get_process=lambda v: [
             int(vv) for vv in (v.strip(" ()@,").split(",")) if not vv == ""
         ],
+    )
+
+    scan_add = Instrument.setting(
+        ":ROUTe:SCAN:ADD %s\n",
+        """ This property adds channels to the scan list. """,
+        validator=clist_validator,
+        values=CHANNELSLIST_VALUES,
+        check_set_errors=True,
+        separator=None
     )
 
     scan_count = Instrument.control(
@@ -205,6 +215,64 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         check_set_errors=True,
         separator=None
     )
+    scan_state = Instrument.measurement(
+        ":ROUTe:SCAN:STATe?\n",
+        """ Property that gets info about the scan state.
+        Return can be:
+        • Idle: The trigger model is stopped 
+        • Running: The trigger model is running 
+        • Waiting: The trigger model has been in the same wait block for more than 100 ms 
+        • Empty: The trigger model is selected, but no blocks are defined 
+        • Paused: The trigger model is paused • Building: Blocks have been added 
+        • Failed: The trigger model is stopped because of an error 
+        • Aborting: The trigger model is stopping 
+        • Aborted: The trigger model is stopped 
+        • Success: The scan completed successfully."""
+    )
+
+    scan_count_step = Instrument.measurement(
+        ":ROUTe:SCAN:COUNt:STEP?\n",
+        """ Property that gets info actual step of a running scan.
+            Example: Responds with the present step count. Output assuming there are five steps in the scan list: 5 
+       """
+    )
+
+
+    def get_scan_count_step(self):
+        """ Method that gets info actual step of a running scan.
+            Example: Responds with the present step count. Output assuming there are five steps in the scan list: 5 """
+
+        return self.scan_count_step
+
+    def get_scan_count(self):
+        """ Method that gets info about the scan state.
+        Return can be:
+        • Idle: The trigger model is stopped
+        • Running: The trigger model is running
+        • Waiting: The trigger model has been in the same wait block for more than 100 ms
+        • Empty: The trigger model is selected, but no blocks are defined
+        • Paused: The trigger model is paused • Building: Blocks have been added
+        • Failed: The trigger model is stopped because of an error
+        • Aborting: The trigger model is stopping
+        • Aborted: The trigger model is stopped
+        • Success: The scan completed successfully."""
+
+        return self.scan_state
+
+    def get_scan_state(self):
+        """ Method that gets info about the scan state.
+        Return can be:
+        • Idle: The trigger model is stopped
+        • Running: The trigger model is running
+        • Waiting: The trigger model has been in the same wait block for more than 100 ms
+        • Empty: The trigger model is selected, but no blocks are defined
+        • Paused: The trigger model is paused • Building: Blocks have been added
+        • Failed: The trigger model is stopped because of an error
+        • Aborting: The trigger model is stopping
+        • Aborted: The trigger model is stopped
+        • Success: The scan completed successfully."""
+
+        return self.scan_state
 
     def set_scan_start_stimulus(self, eventID):
         self.scan_start_stimulus = eventID
@@ -231,11 +299,17 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         """
         self.scan_count = count
 
-    def set_channels_scan(self, channels):  # ok
+    def add_channels_to_scan(self, channels):  # ok
         """ Create an scan done the channels input parameter
         :param channels: a list of channel numbers to be included in the scan
         """
-        self.create_scan = channels
+        self.scan_add = channels
+
+    def create_scan(self, channels):  # ok
+        """ Create an scan done the channels input parameter
+        :param channels: a list of channel numbers to be included in the scan
+        """
+        self.scan_create = channels
 
     def get_state_of_channels(self, channels):  # ok
         """ Get the open or closed state of the specified channels
