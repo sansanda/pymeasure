@@ -51,9 +51,21 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     """
 
+    VALID_SENSE_VOLTAGE_UNITS = [
+        'VOLT',
+        'DB',
+        'DBM'
+    ]
+
+    VALID_SENSE_TEMPERATURE_UNITS = [
+    'KELVin',
+    'CELSius',
+    'FAHRenheit'
+    ]
+
     VALID_TRANSDUCER_TYPES = [
         'TCouple',
-        'THERmistor ',
+        'THERmistor',
         'RTD',
         'TRTD',
         'FRTD'
@@ -524,6 +536,50 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         map_values=False,
         get_process=lambda v: v.replace('"', '')
     )
+
+    sense_temperaure_unit = Instrument.control(
+        ":SENSe:TEMPerature:UNIT? \n", ":SENSe:TEMPerature:UNIT %s\n",
+        """ A string property that sets the units of measurement that are displayed on the front panel 
+        of the instrument and stored in the reading buffer.
+        The change in measurement units is displayed when the next measurement is made. You can only change the units for the listed functions. 
+
+        Also gets the function of the actual sense unit.""",
+        validator=joined_validators_values(strict_discrete_set, clist_validator, separatorsList=['', ',']),
+        values=(VALID_SENSE_TEMPERATURE_UNITS, CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
+    )
+    sense_voltage_dc_unit = Instrument.control(
+        ":SENSe:VOLT:DC:UNIT? \n", ":SENSe:VOLT:DC:UNIT %s\n",
+        """ A string property that sets the units of measurement that are displayed on the front panel 
+        of the instrument and stored in the reading buffer.
+        The change in measurement units is displayed when the next measurement is made. 
+        You can only change the units for the listed functions. 
+
+        Also gets the function of the actual sense unit.""",
+        validator=joined_validators_values(strict_discrete_set, clist_validator, separatorsList=['', ',']),
+        values=(VALID_SENSE_VOLTAGE_UNITS, CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
+    )
+
+    def set_sense_voltage_dc_units(self, unit, channels):
+        """ A string property that sets the units of measurement that are displayed on the front panel
+            of the instrument and stored in the reading buffer.
+            The change in measurement units is displayed when the next measurement is made.
+            You can only change the units for the listed functions.
+
+            Also gets the function of the actual sense unit."""
+        self.sense_voltage_dc_unit = unit, channels
+
+    def set_sense_temperature_units(self, unit, channels):
+        """ A string property that sets the units of measurement that are displayed on the front panel
+            of the instrument and stored in the reading buffer.
+            The change in measurement units is displayed when the next measurement is made.
+            You can only change the units for the listed functions.
+
+            Also gets the function of the actual sense unit."""
+        self.sense_temperaure_unit = unit, channels
 
     def set_sense_transducer(self,transsucer_type, channels):
         """ A string property that sets the transducer type.
