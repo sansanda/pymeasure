@@ -26,6 +26,11 @@ k6510.set_scan_mode('USED')
 k6510.set_scan_start_stimulus('COMMand')
 k6510.enable_scan_restart('OFF')
 
+k6510.close_individual_channels(dc_channels)
+k6510.close_individual_channels(temp_channels)
+k6510.wai()
+k6510.trg()
+
 #print("****",k6510.get_scan_count_step(),"****")
 
 
