@@ -10,7 +10,7 @@ temp_channels = [104]
 
 k6510.set_sense_function("voltage", dc_channels)
 k6510.set_sense_function("temperature", temp_channels)
-
+k6510.set_sense_transducer("FRTD",temp_channels)
 
 k6510.set_voltage_dc_sense_range(dc_channels, 10)
 k6510.set_voltage_dc_nplc(dc_channels, 12)
@@ -22,6 +22,7 @@ k6510.set_scan_mode('USED')
 k6510.set_scan_start_stimulus('COMMand')
 k6510.enable_scan_restart('OFF')
 #print("****",k6510.get_scan_count_step(),"****")
+
 
 #print(k6510.get_allchannels_sense_function())
 

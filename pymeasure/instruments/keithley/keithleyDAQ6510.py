@@ -51,6 +51,13 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     """
 
+    VALID_TRANSDUCER_TYPES = [
+        'TCouple',
+        'THERmistor ',
+        'RTD',
+        'TRTD',
+        'FRTD'
+    ]
     VALID_SCAN_START_STIMULUS = ['NONE',
                                  'DISPlay',
                                  'NOTify1','NOTify2','NOTify3',
@@ -501,7 +508,34 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     all_channels_sense_function = Instrument.measurement('SENS:FUNC? (@allslots)\n',
                                      """ Gets the sense function for all valid channels of the instrument""")
 
+    sense_temperature_transducer = Instrument.control(
+        ":SENSe:TEMPerature:TRANsducer? \n",":SENSe:TEMPerature:TRANsducer %s\n",
+        """ A string property that sets the transducer type. 
+        The type of transducer:  Thermocouple: TCouple  Thermistor: THERmistor  2-wire RTD: RTD  3-wire RTD: TRTD  4-wire RTD: FRTD 
+        The transducer type determines the type of temperature measurement that is made. 
+        Each transducer type has related settings that must also be set. 
+        For example, thermocouple measurements are only made if the type is set is set to thermocouple. 
+        You also need to set the thermocouple type when setting up a thermocouple. 
+        For the RTD transducer types, you also set the RTD type. 
 
+        Also gets the function of the actual transducer type.""",
+        validator=joined_validators_values(strict_discrete_set, clist_validator, separatorsList=['', ',']),
+        values=(VALID_TRANSDUCER_TYPES, CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
+    )
+
+    def set_sense_transducer(self,transsucer_type, channels):
+        """ A string property that sets the transducer type.
+            The type of transducer:  Thermocouple: TCouple  Thermistor: THERmistor  2-wire RTD: RTD  3-wire RTD: TRTD  4-wire RTD: FRTD
+            The transducer type determines the type of temperature measurement that is made.
+            Each transducer type has related settings that must also be set.
+            For example, thermocouple measurements are only made if the type is set is set to thermocouple.
+            You also need to set the thermocouple type when setting up a thermocouple.
+            For the RTD transducer types, you also set the RTD type.
+
+            Also gets the function of the actual transducer type."""
+        self.sense_temperature_transducer = transsucer_type, channels
 
     def set_sense_function(self, function, channels):
         """ Configures the instrument to sense on channels parameter as the function parameter indicates.
