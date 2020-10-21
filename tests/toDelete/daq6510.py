@@ -2,18 +2,22 @@ from pymeasure.adapters.ethernet import EthernetAdapter
 from pymeasure.instruments.keithley.keithleyDAQ6510 import KeithleyDAQ6510, KeithleyBuffer
 import time
 
-ea = EthernetAdapter("169.254.199.70", 5025)
-k6510 = KeithleyDAQ6510(ea)
-
 dc_channels = [101, 102, 103]
 temp_channels = [104]
 
+ea = EthernetAdapter("169.254.199.70", 5025)
+k6510 = KeithleyDAQ6510(ea)
+
+k6510.reset()
 k6510.set_sense_function("voltage", dc_channels)
 k6510.set_sense_function("temperature", temp_channels)
-k6510.set_sense_transducer("FRTD",temp_channels)
+k6510.set_sense_temperature_nplc(10,temp_channels)
+k6510.set_sense_transducer("TCouple",temp_channels)
+k6510.set_sense_temperature_themocouple_type('K',temp_channels)
+# k6510.set_sense_temperature_rtdfour_type("PT100",temp_channels)
 k6510.set_sense_temperature_units("CELSius",temp_channels)
-k6510.set_voltage_dc_sense_range(dc_channels, 10)
-k6510.set_voltage_dc_nplc(dc_channels, 12)
+k6510.set_voltage_dc_sense_range(10, dc_channels )
+k6510.set_sense_voltage_dc_nplc(12, dc_channels)
 k6510.create_scan(dc_channels)
 k6510.add_channels_to_scan(temp_channels)
 k6510.set_scan_count(10)

@@ -41,7 +41,6 @@ from pymeasure.instruments.validators import joined_validators_values
 
 
 class KeithleyDAQ6510(Instrument, KeithleyBuffer):
-
     """ Represents the Keithely DAQ6510 Multimeter/Switch System and provides a
     high-level interface for interacting with the instrument.
 
@@ -51,6 +50,28 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     """
 
+    VALID_SENSE_THERMOCOUPLE_TYPES = [
+        'B',
+        'E',
+        'J',
+        'K',
+        'N',
+        'R',
+        'S',
+        'T'
+    ]
+
+    VALID_SENSE_RTDfour_TYPES = [
+        'PT100',
+        'PT385',
+        'PT3916',
+        'D100',
+        'F100',
+        'USER'
+    ]
+    VALID_SENSE_RTDthree_TYPES = VALID_SENSE_RTDfour_TYPES
+    VALID_SENSE_RTDtwo_TYPES = VALID_SENSE_RTDfour_TYPES
+
     VALID_SENSE_VOLTAGE_UNITS = [
         'VOLT',
         'DB',
@@ -58,9 +79,9 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     ]
 
     VALID_SENSE_TEMPERATURE_UNITS = [
-    'KELVin',
-    'CELSius',
-    'FAHRenheit'
+        'KELVin',
+        'CELSius',
+        'FAHRenheit'
     ]
 
     VALID_TRANSDUCER_TYPES = [
@@ -72,18 +93,18 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     ]
     VALID_SCAN_START_STIMULUS = ['NONE',
                                  'DISPlay',
-                                 'NOTify1','NOTify2','NOTify3',
+                                 'NOTify1', 'NOTify2', 'NOTify3',
                                  'COMMand',
-                                 'DIGio1','DIGio2','DIGio3','DIGio4','DIGio5','DIGio6',
-                                 'TSPLink1','TSPLink2','TSPLink3',
-                                 'LAN1','LAN2','LAN3','LAN4','LAN5','LAN6','LAN7','LAN8',
-                                 'BLENder1','BLENder2',
-                                 'TIMer1','TIMer2','TIMer3','TIMer4',
+                                 'DIGio1', 'DIGio2', 'DIGio3', 'DIGio4', 'DIGio5', 'DIGio6',
+                                 'TSPLink1', 'TSPLink2', 'TSPLink3',
+                                 'LAN1', 'LAN2', 'LAN3', 'LAN4', 'LAN5', 'LAN6', 'LAN7', 'LAN8',
+                                 'BLENder1', 'BLENder2',
+                                 'TIMer1', 'TIMer2', 'TIMer3', 'TIMer4',
                                  'EXTernal',
-                                 'SCANCHANnel','SCANCOMPlete','SCANMEASure','SCANALARmlimit']
-    VALID_SCAN_RESTART_PARAMS = ['ON','OFF']
-    VALID_SCAN_MODES = ['ALL','USED','ABR']
-    VALID_SCAN_INTERVAL_RANGE = [0,100000] #(0 to 100 ks)
+                                 'SCANCHANnel', 'SCANCOMPlete', 'SCANMEASure', 'SCANALARmlimit']
+    VALID_SCAN_RESTART_PARAMS = ['ON', 'OFF']
+    VALID_SCAN_MODES = ['ALL', 'USED', 'ABR']
+    VALID_SCAN_INTERVAL_RANGE = [0, 100000]  # (0 to 100 ks)
     VALID_SCAN_COUNT_RANGE = [0, 100000000]
     VALID_NPLC_RANGE = [0.0005, 12]
     VALID_RANGES = {
@@ -91,16 +112,16 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         'current ac': [0.0001, 0.001, 0.01, 0.1, 1, 3],
         'voltage': [0.1, 1, 10, 100, 1000],
         'voltage ac': [0.1, 1, 10, 100, 750],
-        'resistance': [10, 100, 1000,10000,1000000,10000000,100000000],
+        'resistance': [10, 100, 1000, 10000, 1000000, 10000000, 100000000],
         'resistance 4W O-COMP': [1, 10, 100, 1000, 10000],
         'resistance 4W NOT O-COMP': [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000],
         'diode': [],
-        'capacitance': [0.000000001, 0.00000001,0.0000001,0.000001, 0.00001, 0.0001],
+        'capacitance': [0.000000001, 0.00000001, 0.0000001, 0.000001, 0.00001, 0.0001],
         'temperature': [],
         'continuity': [],
         'frequency': [],
         'period': [],
-        'voltage dc ratio': [0.1,1,10,100,1000],
+        'voltage dc ratio': [0.1, 1, 10, 100, 1000],
         'digitize voltage': [],
         'digitize current': []
     }
@@ -256,7 +277,6 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
        """
     )
 
-
     def get_scan_count_step(self):
         """ Method that gets info actual step of a running scan.
             Example: Responds with the present step count. Output assuming there are five steps in the scan list: 5 """
@@ -304,15 +324,13 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
                 :param mode: An str with the mode of the scan to be configured"""
         self.scan_mode = mode
 
-
-
-    def set_scan_interval(self,interval):
+    def set_scan_interval(self, interval):
         """ Configure the interval parameter of an existing scan
         :param count: The count of the scan to be configured
         """
         self.scan_interval = interval
 
-    def set_scan_count(self,count):
+    def set_scan_count(self, count):
         """ Configure the count parameter of an existing scan
         :param count: The count of the scan to be configured
         """
@@ -336,7 +354,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :param channels: a list of channel numbers, or single channel number
         """
         clist = clist_validator(channels, self.CHANNELSLIST_VALUES)
-        #print("ROUTe:MULTiple:STATe? %s" % clist + '\n')
+        # print("ROUTe:MULTiple:STATe? %s" % clist + '\n')
         state = self.ask("ROUTe:STATe? %s" % clist + '\n')
         # print(state)
         return state
@@ -346,7 +364,6 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         """
         self.write(":ROUTe:OPEN:ALL\n")
 
-
     def close_individual_channels(self, channels):
         """ Closes (connects) the channels of the cardModel connection matrix.
 
@@ -354,7 +371,8 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
             """
         if isinstance(channels, str) and channels == "all":
             self.closed_channels = self.CHANNELSLIST_VALUES
-        else: self.closed_channels = channels
+        else:
+            self.closed_channels = channels
 
     def open_individual_channels(self, channels):
         """ Opens (unconnects) the channels of the cardModel connection matrix.
@@ -363,9 +381,11 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
             """
         if isinstance(channels, str) and channels == "all":
             self.open_channels = self.CHANNELSLIST_VALUES
-        else: self.open_channels = channels
+        else:
+            self.open_channels = channels
 
-    def close_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, instrumentNSlots=2, slot=1):  # ok
+    def close_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, instrumentNSlots=2,
+                              slot=1):  # ok
         """ Closes (connects) the channels between column(s) and row(s)
         of the cardModel connection matrix.
         Only one of the parameters `rows' or 'columns' can be "all"
@@ -381,10 +401,12 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :param slot: slot number (1 or 2) of the DAQ6510
         """
 
-        channels = self.channels_from_rows_columns(rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots, slot)
+        channels = self.channels_from_rows_columns(rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots,
+                                                   slot)
         self.closed_channels = channels
 
-    def open_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, instrumentNSlots=2, slot=1):  # ok
+    def open_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, instrumentNSlots=2,
+                             slot=1):  # ok
         """ Opens (disconnects) the channels between column(s) and row(s)
         of the cardModel connection matrix.
         Only one of the parameters `rows' or 'columns' can be "all"
@@ -401,10 +423,12 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :param slot: slot number (1 or 2) of the DAQ6510
         """
 
-        channels = self.channels_from_rows_columns(rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots, slot)
+        channels = self.channels_from_rows_columns(rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots,
+                                                   slot)
         self.open_channels = channels
 
-    def channels_from_rows_columns(self, rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots, slot=None):#ok
+    def channels_from_rows_columns(self, rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots,
+                                   slot=None):  # ok
         """ Determine the channel numbers between column(s) and row(s) of the
         cardModel connection matrix. Returns a list of channel numbers.
         Only one of the parameters `rows' or 'columns' can be "all"
@@ -421,26 +445,26 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
         """
 
-        if slot not in range(1,instrumentNSlots+1):
+        if slot not in range(1, instrumentNSlots + 1):
             raise ValueError("Parameter slot must be between 1 and %s" % instrumentNSlots)  # 7700 only have 2 slots
 
-        if isinstance(rows,int) and (not rows in range(1,cardNRows+1)):
+        if isinstance(rows, int) and (not rows in range(1, cardNRows + 1)):
             raise ValueError("Parameter rows must be between 1 and %s" % cardNRows)  # 7700 only have 2 rows
 
         if isinstance(rows, tuple) or isinstance(rows, list):
-            if not set(rows).issubset([(i) for i  in range(1,cardNRows+1)]):
+            if not set(rows).issubset([(i) for i in range(1, cardNRows + 1)]):
                 raise ValueError("Parameter rows must be between 1 and %s" % cardNRows)  # 7700 only have 2 rows
 
-        if isinstance(columns,int) and (not columns in range(1,cardNColumns+1)):
+        if isinstance(columns, int) and (not columns in range(1, cardNColumns + 1)):
             raise ValueError("Parameter columns must be between 1 and %s" % cardNColumns)  # 7700 only have 10 columns
 
         if isinstance(columns, tuple) or isinstance(columns, list):
-            if not set(columns).issubset([(i) for i  in range(1,cardNColumns+1)]):
-                raise ValueError("Parameter columns must be between 1 and %s" % cardNColumns)  # 7700 only have 10 columns
+            if not set(columns).issubset([(i) for i in range(1, cardNColumns + 1)]):
+                raise ValueError(
+                    "Parameter columns must be between 1 and %s" % cardNColumns)  # 7700 only have 10 columns
 
         if (slot is not None) and (self.CARDSLIST_VALUES[slot - 1][0] != float(cardModel)):
             raise ValueError("No " + cardModel + " card installed in slot %g" % slot)
-
 
         if isinstance(rows, str) and isinstance(columns, str):
             raise ValueError("Only one parameter can be 'all'")
@@ -483,7 +507,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         if slot is not None:
             channels += 100 * slot
 
-        #print(channels)
+        # print(channels)
         return channels
 
     #####################
@@ -511,17 +535,17 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :code:'continutity' 
         
         Also gets the function of the active channel.""",
-        validator=joined_validators_values(strict_discrete_set,clist_validator, separatorsList=['',',']),
+        validator=joined_validators_values(strict_discrete_set, clist_validator, separatorsList=['', ',']),
         values=(SENSE_FUNCTIONS.values(), CHANNELSLIST_VALUES),
         map_values=False,
         get_process=lambda v: v.replace('"', '')
     )
 
     all_channels_sense_function = Instrument.measurement('SENS:FUNC? (@allslots)\n',
-                                     """ Gets the sense function for all valid channels of the instrument""")
+                                                         """ Gets the sense function for all valid channels of the instrument""")
 
     sense_temperature_transducer = Instrument.control(
-        ":SENSe:TEMPerature:TRANsducer? \n",":SENSe:TEMPerature:TRANsducer %s\n",
+        ":SENSe:TEMPerature:TRANsducer? \n", ":SENSe:TEMPerature:TRANsducer %s\n",
         """ A string property that sets the transducer type. 
         The type of transducer:  Thermocouple: TCouple  Thermistor: THERmistor  2-wire RTD: RTD  3-wire RTD: TRTD  4-wire RTD: FRTD 
         The transducer type determines the type of temperature measurement that is made. 
@@ -563,6 +587,66 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         get_process=lambda v: v.replace('"', '')
     )
 
+    sense_temperature_rtdfour_type = Instrument.control(
+        ":SENSe:TEMPerature:RTD:FOUR? \n", ":SENSe:TEMPerature:RTD:FOUR %s\n",
+        """ A string property that sets the type of 4-wire RTD that is being used. . 
+
+        Also gets the function of the actual type of 4-wire RTD.""",
+        validator=joined_validators_values(strict_discrete_set, clist_validator, separatorsList=['', ',']),
+        values=(VALID_SENSE_RTDfour_TYPES, CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
+    )
+
+    sense_temperature_rtdthree_type = Instrument.control(
+        ":SENSe:TEMPerature:RTD:THRee? \n", ":SENSe:TEMPerature:RTD:THRee %s\n",
+        """ A string property that sets the type of 3-wire RTD that is being used. . 
+
+        Also gets the function of the actual type of 3-wire RTD.""",
+        validator=joined_validators_values(strict_discrete_set, clist_validator, separatorsList=['', ',']),
+        values=(VALID_SENSE_RTDthree_TYPES, CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
+    )
+
+    sense_temperature_rtdtwo_type = Instrument.control(
+        ":SENSe:TEMPerature:RTD:TWO? \n", ":SENSe:TEMPerature:RTD:TWO %s\n",
+        """ A string property that sets the type of 2-wire RTD that is being used. . 
+
+        Also gets the function of the actual type of 2-wire RTD.""",
+        validator=joined_validators_values(strict_discrete_set, clist_validator, separatorsList=['', ',']),
+        values=(VALID_SENSE_RTDtwo_TYPES, CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
+    )
+
+    sense_temperature_thermocouple_type = Instrument.control(
+        ":SENSe:TEMPerature:TCouple:TYPE? \n", ":SENSe:TEMPerature:TCouple:TYPE %s\n",
+        """ A string property that sets the type of the themocouple that is being used. . 
+
+        Also gets the function of the actual type of the thermocuple.""",
+        validator=joined_validators_values(strict_discrete_set, clist_validator, separatorsList=['', ',']),
+        values=(VALID_SENSE_THERMOCOUPLE_TYPES, CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
+    )
+
+    def set_sense_temperature_themocouple_type(self, themocouple_type, channels):
+        """ A method that sets the type of the thermocouple that is being used."""
+        self.sense_temperature_thermocouple_type = themocouple_type, channels
+
+    def set_sense_temperature_rtdfour_type(self, rtdfour_type, channels):
+        """ A method that sets the type of 4-wire RTD that is being used."""
+        self.sense_temperature_rtdfour_type = rtdfour_type, channels
+
+    def set_sense_temperature_rtdthree_type(self, rtdthree_type, channels):
+        """ A method that sets the type of 3-wire RTD that is being used."""
+        self.sense_temperature_rtdthree_type = rtdthree_type, channels
+
+    def set_sense_temperature_rtdtwo_type(self, rtdtwo_type, channels):
+        """ A method that sets the type of 4-wire RTD that is being used."""
+        self.sense_temperature_rtdtwo_type = rtdtwo_type, channels
+
     def set_sense_voltage_dc_units(self, unit, channels):
         """ A string property that sets the units of measurement that are displayed on the front panel
             of the instrument and stored in the reading buffer.
@@ -581,7 +665,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
             Also gets the function of the actual sense unit."""
         self.sense_temperaure_unit = unit, channels
 
-    def set_sense_transducer(self,transsucer_type, channels):
+    def set_sense_transducer(self, transsucer_type, channels):
         """ A string property that sets the transducer type.
             The type of transducer:  Thermocouple: TCouple  Thermistor: THERmistor  2-wire RTD: RTD  3-wire RTD: TRTD  4-wire RTD: FRTD
             The transducer type determines the type of temperature measurement that is made.
@@ -616,44 +700,66 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
         channels_function_list = self.all_channels_sense_function.split(';')
 
-        if nCards==1:
-            for index,channel_function in enumerate(channels_function_list):
+        if nCards == 1:
+            for index, channel_function in enumerate(channels_function_list):
                 channel_function_dict[101 + index] = channels_function_list[index]
 
-        if nCards==2:
-            n_channels_per_card = int(len(channels_function_list)/2)
-            for index,channel_function in enumerate(channels_function_list):
-                if 1 <= (index+1) <= n_channels_per_card:
+        if nCards == 2:
+            n_channels_per_card = int(len(channels_function_list) / 2)
+            for index, channel_function in enumerate(channels_function_list):
+                if 1 <= (index + 1) <= n_channels_per_card:
                     channel_function_dict[101 + index % n_channels_per_card] = channels_function_list[index]
                 else:
                     channel_function_dict[201 + index % n_channels_per_card] = channels_function_list[index]
 
         return channel_function_dict
 
-
-    #Measure specific commands
-    #like read, trigger, trace, etc..
+    # Measure specific commands
+    # like read, trigger, trace, etc..
 
     read_measure = Instrument.measurement(":READ?\n",
-                                     """ Reads the voltage in Volts, if configured for this reading.
+                                          """ Reads the voltage in Volts, if configured for this reading.
                                      """
                                           )
+
+    ###############
+    # TEMPERATURE #
+    ###############
+
+    sense_temperature_nplc = Instrument.control(
+        ":SENS:TEMP:NPLC?\n", ":SENS:TEMP:NPLC %s\n",
+        """ A string property that controls the configuration nplc for measurements,
+        which can take the values: 0.0005 to 15 (60 Hz) or 12 (50 Hz or 400 Hz) """,
+        validator=joined_validators_values(strict_range, clist_validator, separatorsList=['', ',']),
+        values=(VALID_NPLC_RANGE, CHANNELSLIST_VALUES),
+        map_values=False,
+        get_process=lambda v: v.replace('"', '')
+    )
+
+    def set_sense_temperature_nplc(self, nplc, channels):
+        """ Configures the instrument to sense on channels parameter as the function parameter indicates.
+
+        :param nplc: The value for the desired NPLC
+        :param channels: a list or tuple containing the channels to be set the nplc
+        """
+
+        self.sense_temperature_nplc = nplc, channels
 
 
     ###############
     # Voltage (V) #
     ###############
 
-    voltage_dc_range = Instrument.control(
-        ":SENS:VOLT:RANG?\n", ":SENS:VOLT:RANG:AUTO 0;:SENS:VOLT:RANG %g\n",
-        """ A floating point property that controls the measurement voltage
-        range in Volts, which can take values from 100mV to 1000 V.
-        Auto-range is disabled when this property is set. """,
-        validator=truncated_range,
-        values=[0.1, 1000]
-    )
+    # sense_voltage_dc_range = Instrument.control(
+    #     ":SENS:VOLT:RANG?\n", ":SENS:VOLT:RANG:AUTO 0;:SENS:VOLT:RANG %g\n",
+    #     """ A floating point property that controls the measurement voltage
+    #     range in Volts, which can take values from 100mV to 1000 V.
+    #     Auto-range is disabled when this property is set. """,
+    #     validator=truncated_range,
+    #     values=[0.1, 1000]
+    # )
 
-    voltage_ac_range = Instrument.control(
+    sense_voltage_ac_range = Instrument.control(
         ":SENS:VOLT:AC:RANG?\n", ":SENS:VOLT:RANG:AUTO 0;:SENS:VOLT:AC:RANG %g\n",
         """ A floating point property that controls the AC voltage range in
         Volts, which can take values from 100mV to 750 V.
@@ -662,17 +768,17 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         values=[0.1, 750]
     )
 
-    voltage_dc_nplc = Instrument.control(
+    sense_voltage_dc_nplc = Instrument.control(
         ":SENS:VOLT:NPLC?\n", ":SENS:VOLT:NPLC %s\n",
         """ A string property that controls the configuration nplc for measurements,
         which can take the values: 0.0005 to 15 (60 Hz) or 12 (50 Hz or 400 Hz) """,
-        validator=joined_validators_values(strict_range,clist_validator,separatorsList=['',',']),
+        validator=joined_validators_values(strict_range, clist_validator, separatorsList=['', ',']),
         values=(VALID_NPLC_RANGE, CHANNELSLIST_VALUES),
         map_values=False,
         get_process=lambda v: v.replace('"', '')
     )
 
-    voltage_dc_sense_range = Instrument.control(
+    sense_voltage_dc_range = Instrument.control(
         ":SENS:VOLT:DC:RANG:UPP?\n",
         "SENS:VOLT:DC:RANG:UPP %s\n",
         """ A string property that controls the sense range of the given function.""",
@@ -682,35 +788,72 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         get_process=lambda v: v.replace('"', '')
     )
 
-
-    def set_voltage_dc_sense_range(self, channels, range):
+    def set_voltage_dc_sense_range(self, range, channels):
         """ Configures the instrument to sense on channels parameter as the function parameter indicates.
 
         :param range: The value for the desired range
         :param channels: a list or tuple containing the channels to be set the sense range
         """
 
-        self.voltage_dc_sense_range = range, channels
+        self.sense_voltage_dc_range = range, channels
 
-    def set_voltage_dc_nplc(self, channels, nplc):
+    def set_sense_voltage_dc_nplc(self, nplc, channels):
         """ Configures the instrument to sense on channels parameter as the function parameter indicates.
 
         :param nplc: The value for the desired NPLC
         :param channels: a list or tuple containing the channels to be set the nplc
         """
 
-        self.voltage_dc_nplc = nplc, channels
+        self.sense_voltage_dc_nplc = nplc, channels
 
     ###################
     # COMMON COMMANDS #
     ###################
 
-    def send_trg(self):
+    def wai(self):
+        """
+        This command postpones the execution of subsequent commands until all previous overlapped commands are finished.
+        There are two types of instrument commands:
+            • Overlapped commands: Commands that allow the execution of subsequent commands while instrument operations of the overlapped command are still in progress.
+            • Sequential commands: Commands whose operations must finish before the next command is executed.
+        The *WAI command suspends the execution of commands until the instrument operations of all previous overlapped commands are finished.
+        The *WAI command is not needed for sequential commands.
+        Typically, this command is sent after the initiate trigger model command.
+        :return:
         """
 
+        self.write("*WAI\n")
+
+    def trg(self):
+        """
+        This command generates a trigger event from a remote command interface.
+        Use the *TRG command to generate a trigger event.
+        If you are using the SCPI command set, this command generates the COMMand event.
+        If you are using the TSP command set, this command generates the trigger.EVENT_COMMAND event.
+        You can use this constant as the stimulus of any trigger object, which causes that trigger object to respond to the trigger events generated by *TRG.
+        :return: None"""
+
+        self.write("*TRG\n")
+
+    def reset(self):  # ok
+        """ This command resets the instrument settings to their default values and clears the reading buffers.
+        Returns the instrument to default settings, cancels all pending commands, and cancels the response to any previously received *OPC and *OPC? commands.
+        """
+        self.write("*RST\n")
+
+    def cls(self):
+        """
+        This command clears the event registers and queues.
+        This command clears the event registers of the Questionable Event and Operation Event Register set.
+        It also clears the event log. It does not affect the Questionable Event Enable or Operation Event Enable registers.
+        This is the equivalent of sending the SCPI commands :STATus:CLEar and :SYStem:CLEar or the TSP commands status.clear() and eventlog.clear().
+        To reset all the bits of the Standard Event Enable Register, send the command: *ESE
         :return: None
         """
-        self.write("*TRG\n")
+
+        self.write("*CLS\n")
+
+
     #
     # Introduction...............................................................................A - 1
     # *CLS.........................................................................................A - 2
@@ -730,10 +873,15 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     # SYSTEM COMMANDS #
     ###################
 
-    def reset(self):  # ok
-        """ Resets the instrument and clears the queue.  """
-        # self.write("status:queue:clear;*RST;:stat:pres;:*CLS;")
-        self.write("*RST;:stat:pres;:*CLS;\n")
+    def resetAllStatusModelBits(self):
+        """
+        This command resets all bits in the status model.
+        This function clears the event registers and the enable registers for operation and questionable.
+        It will not clear the Service Request Enable Register (*SRE) to Standard Request Enable Register (*ESE).
+        Preset does not affect the event queue. The Standard Event Status Register is not affected by this command.
+        :return: None
+        """
+        self.write(":STATus:PRESet\n")
 
     def getNCardsInstalled(self):
 
@@ -771,7 +919,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
             channels = [100 * slotNumber + ch for ch in channels]
             self.CHANNELSLIST_VALUES.extend(channels)
 
-    def beep(self, frequency, duration):#ok
+    def beep(self, frequency, duration):  # ok
         """ Sounds a system beep.
 
         :param frequency: A frequency in Hz between 65 Hz and 2 MHz
@@ -779,7 +927,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         """
         self.write(":SYST:BEEP %g, %g\n" % (frequency, duration))
 
-    def triad(self, base_frequency, duration):#ok
+    def triad(self, base_frequency, duration):  # ok
         """ Sounds a musical triad using the system beep.
 
         :param base_frequency: A frequency in Hz between 65 Hz and 1.3 MHz
@@ -790,35 +938,6 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         self.beep(base_frequency * 5.0 / 4.0, duration)
         time.sleep(duration)
         self.beep(base_frequency * 6.0 / 4.0, duration)
-
-
-    ############################
-    # ERRORS HANDLING COMMANDS #
-    ############################
-
-    @property
-    def error(self):  # ok
-        """ Returns a tuple of an error code and message from a
-        single error. """
-        err = self.values(":system:error?\n", separator=",")
-        if len(err) < 2:
-            err = self.read()  # Try reading again
-        code = err[0]
-        message = err[1].replace('"', '')
-        return (code, message)
-
-    def check_errors(self):  # ok
-        """ Logs any system errors reported by the instrument.
-        """
-        code, message = self.error
-        while code != 0:
-            t = time.time()
-            log.info("Keithley DAQ6510 reported error: %d, %s" % (code, message))
-            # print(code, message)
-            code, message = self.error
-            if (time.time() - t) > 10:
-                log.warning("Timed out for Keithley DAQ6510 error retrieval.")
-
 
     ###########
     # DISPLAY #
@@ -857,7 +976,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         get_process=lambda v: v.strip("'\""),
     )
 
-    def display_closed_channels(self, line=1, brightness=75):#ok
+    def display_closed_channels(self, line=1, brightness=75):  # ok
         """ Show the presently closed channels on the display of the Keithley DAQ6510.
 
         :param line: 1 for displaying at top line, 2 for displaying at bottom line or 0 for both
@@ -894,21 +1013,21 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         channel_string_for_bottomline = channel_string_for_bottomline[0:str_length_for_bottomline]
 
         # write the string to the display
-        if line==1:
+        if line == 1:
             self.display_text_at_topline = channel_string_for_topline
-        elif line==2:
+        elif line == 2:
             self.display_text_at_bottomline = channel_string_for_bottomline
         else:
             self.display_text_at_topline = channel_string_for_topline
             self.display_text_at_bottomline = channel_string_for_bottomline
 
-    def display_text(self, text, line=1, brightness=75):#ok
+    def display_text(self, text, line=1, brightness=75):  # ok
         """ Show a text on the display of the Keithley DAQ6510.
 
         :param line: 1 for displaying at top line, 2 for displaying at bottom line or 0 for both
 
         """
-        if line not in (0, 1, 2) or (not isinstance(text,str)): return
+        if line not in (0, 1, 2) or (not isinstance(text, str)): return
 
         str_length_for_bottomline = 32
         str_length_for_topline = 20
@@ -917,42 +1036,68 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         self.display_control = brightness
 
         # write the string to the display
-        if line==1:
+        if line == 1:
             self.display_text_at_topline = text[0:str_length_for_topline]
-        elif line==2:
+        elif line == 2:
             self.display_text_at_bottomline = text[0:str_length_for_bottomline]
         else:
             self.display_text_at_topline = text[0:str_length_for_topline]
             self.display_text_at_bottomline = text[0:str_length_for_bottomline]
 
-    def clear_display(self):#ok
+    def clear_display(self):  # ok
         self.write(':DISPlay:CLEar\n')
 
     ###########
     # COMBOS  #
     ###########
 
-    def config_and_measure_voltage(self, channels, max_voltage=1, ac=False, nplc=1):
-        """ Configures the instrument to measure voltage,
-        based on a maximum voltage to set the range, and
-        a boolean flag to determine if DC or AC is required.
+    # def config_and_measure_voltage(self, channels, max_voltage=1, ac=False, nplc=1):
+    #     """ Configures the instrument to measure voltage,
+    #     based on a maximum voltage to set the range, and
+    #     a boolean flag to determine if DC or AC is required.
+    #
+    #     :param channels: an int, list or tuple containing the channels where measure the voltage
+    #     :param max_voltage: A voltage in Volts to set the voltage range
+    #     :param ac: False for DC voltage, and True for AC voltage
+    #     """
+    #
+    #     # TODO: config_and_measure_voltage method
+    #
+    #     self.reset()
+    #     if ac:
+    #         self.sense_function = 'voltage ac'
+    #         self.sense_voltage_ac_range = max_voltage
+    #     else:
+    #         self.sense_function = self.SENSE_FUNCTIONS.get('voltage'), channels
+    #         self.sense_voltage_dc_range = max_voltage
+    #         self.sense_voltage_dc_nplc = 10, channels
 
-        :param channels: an int, list or tuple containing the channels where measure the voltage
-        :param max_voltage: A voltage in Volts to set the voltage range
-        :param ac: False for DC voltage, and True for AC voltage
+    ############################
+    # ERRORS HANDLING COMMANDS #
+    ############################
+
+    @property
+    def error(self):  # ok
+        """ Returns a tuple of an error code and message from a
+        single error. """
+        err = self.values(":system:error?\n", separator=",")
+        if len(err) < 2:
+            err = self.read()  # Try reading again
+        code = err[0]
+        message = err[1].replace('"', '')
+        return (code, message)
+
+    def check_errors(self):  # ok
+        """ Logs any system errors reported by the instrument.
         """
-
-        #TODO: config_and_measure_voltage method
-
-        self.reset()
-        if ac:
-            self.sense_function = 'voltage ac'
-            self.voltage_ac_range = max_voltage
-        else:
-            self.sense_function = self.SENSE_FUNCTIONS.get('voltage'), channels
-            self.voltage_dc_range = max_voltage
-            self.voltage_dc_nplc = 10, channels
-
+        code, message = self.error
+        while code != 0:
+            t = time.time()
+            log.info("Keithley DAQ6510 reported error: %d, %s" % (code, message))
+            # print(code, message)
+            code, message = self.error
+            if (time.time() - t) > 10:
+                log.warning("Timed out for Keithley DAQ6510 error retrieval.")
 
     ################
     # CONSTRUCTOR  #
@@ -965,4 +1110,3 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         self.check_errors()
         self.determine_installed_cards()
         self.determine_valid_channels()
-
