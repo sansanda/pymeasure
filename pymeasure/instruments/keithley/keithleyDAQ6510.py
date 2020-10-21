@@ -153,34 +153,70 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     # at CHANNELSLIST_VALUES[0] is a 7700 card is pugged to the slot 1 of the instrument
     CHANNELSLIST_VALUES = list()
 
+
+
+    #####################
+    # TRIGGER COMMANDS  #
+    #####################
+
+    def pause_trigger(self):
+        """
+        This command pauses a running scan.
+        To continue the trigger model and the scan, send the resume command.
+        """
+        self.write(":TRIGger:PAUSe\n")
+
+    def resume_trigger(self):
+        """
+        This command continues a paused scan or trigger model.
+        This command continues running the scan or trigger model operation if the scan or trigger model was paused.
+        """
+        self.write(":TRIGger:RESume\n")
+
+    def get_trigger_model_state(self):
+        """
+        This command returns the state of the trigger model. The instrument checks the state of a started
+        trigger model every 100 ms.
+        This command returns the trigger state and the block that the trigger model last executed. If the
+        trigger model supports a scan, three states and two block numbers are returned.
+        The trigger model states are:
+        Section 13: SCPI command reference DAQ6510 Data Acquisition And Multimeter System Reference Manual
+        13-266 DAQ6510-901-01 Rev. A / April 2018
+        • Idle: The trigger model is stopped
+        • Running: The trigger model is running
+        • Waiting: The trigger model has been in the same wait block for more than 100 ms
+        • Empty: The trigger model is selected, but no blocks are defined
+        • Paused: The trigger model is paused
+        • Building: Blocks have been added
+        • Failed: The trigger model is stopped because of an error
+        • Aborting: The trigger model is stopping
+        • Aborted: The trigger model is stopped
+        """
+        self.ask(":TRIGger:STATe?\n")
+
+    def abort_triggerModel_or_scans(self):
+        """
+        This command stops all trigger model commands and scans on the instrument.
+        When this command is received, the instrument stops the trigger model and scans.
+        """
+        self.write(":ABORt\n")
+
+    def init_triggerModel_or_scans(self):
+        """
+        This method starts the trigger model or scan.
+        """
+        self.write(":INITiate:IMMediate\n")
+
+
     #####################
     # ROUTING COMMANDS  #
     #####################
 
-    closed_channels = Instrument.control(
-        "ROUTe:MULTiple:CLOSe?\n", "ROUTe:MULTiple:CLOSe %s\n",
-        """ Parameter that controls the opened and closed channels.
-        All mentioned channels are closed, other channels will be opened.
-        """,
-        validator=clist_validator,
-        values=CHANNELSLIST_VALUES,
-        check_get_errors=True,
-        check_set_errors=True,
-        separator=None,
-        get_process=lambda v: [
-            int(vv) for vv in (v.strip(" ()@,").split(",")) if not vv == ""
-        ],
-    )
+    # The ROUTe subsystem contains commands to open, close, and set up scans for channels. It also
+    # contains a command you can use to verify whether the front or rear terminals are used for
+    # measurements.
 
-    open_channels = Instrument.setting(
-        "ROUTe:MULTiple:OPEN %s\n",
-        """ A parameter that opens the specified list of channels. Can only
-        be set.
-        """,
-        validator=clist_validator,
-        values=CHANNELSLIST_VALUES,
-        check_set_errors=True
-    )
+    #SCAN RELATED COMMANDS
 
     scan_create = Instrument.control(
         "ROUTe:SCAN:CREate?\n", "ROUTe:SCAN:CREate %s\n",
@@ -245,6 +281,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         check_set_errors=True,
         separator=None
     )
+
 
     scan_start_stimulus = Instrument.control(
         ":ROUTe:SCAN:STARt:STIMulus\n", ":ROUTe:SCAN:STARt:STIMulus %s\n",
@@ -347,6 +384,33 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :param channels: a list of channel numbers to be included in the scan
         """
         self.scan_create = channels
+
+    #CHANNEL RELATED COMMANDS
+
+    closed_channels = Instrument.control(
+        "ROUTe:MULTiple:CLOSe?\n", "ROUTe:MULTiple:CLOSe %s\n",
+        """ Parameter that controls the opened and closed channels.
+        All mentioned channels are closed, other channels will be opened.
+        """,
+        validator=clist_validator,
+        values=CHANNELSLIST_VALUES,
+        check_get_errors=True,
+        check_set_errors=True,
+        separator=None,
+        get_process=lambda v: [
+            int(vv) for vv in (v.strip(" ()@,").split(",")) if not vv == ""
+        ],
+    )
+
+    open_channels = Instrument.setting(
+        "ROUTe:MULTiple:OPEN %s\n",
+        """ A parameter that opens the specified list of channels. Can only
+        be set.
+        """,
+        validator=clist_validator,
+        values=CHANNELSLIST_VALUES,
+        check_set_errors=True
+    )
 
     def get_state_of_channels(self, channels):  # ok
         """ Get the open or closed state of the specified channels
@@ -824,7 +888,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
         self.write("*WAI\n")
 
-    def trg(self):
+    def send_trg_command(self):
         """
         This command generates a trigger event from a remote command interface.
         Use the *TRG command to generate a trigger event.

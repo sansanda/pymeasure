@@ -28,8 +28,9 @@ k6510.enable_scan_restart('OFF')
 
 k6510.close_individual_channels(dc_channels)
 k6510.close_individual_channels(temp_channels)
+k6510.init_triggerModel_or_scans()
 k6510.wai()
-k6510.trg()
+k6510.send_trg_command()
 
 #print("****",k6510.get_scan_count_step(),"****")
 
