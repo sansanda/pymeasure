@@ -162,6 +162,71 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     # over the remote interface.
 
 
+    # TODO: FORMat:ASCii:PRECision
+
+    # :FORMat:ASCii:PRECision
+    # This command sets the precision (number of digits) for all numbers returned in the ASCII format.
+    # Type Affected by Where saved Default value
+    # Command and query Recall settings
+    # Instrument reset
+    # Power cycle
+    # Save settings 0
+    # Usage
+    # :FORMat:ASCii:PRECision <value>
+    # :FORMat:ASCii:PRECision <DEF|MIN|MAX>
+    # :FORMat:ASCii:PRECision?
+    # :FORMat:ASCii:PRECision? <DEF|MIN|MAX>
+    # <value> The precision:
+    #  Automatic: 0
+    #  Specific value: 1 to 16
+    # <DEF|MIN|MAX> The DEFault, MINimum, or MAXimum value
+    # Details
+    # This attribute specifies the precision (number of digits) for queries.
+    # Note that the precision is the number of significant digits. There is always one digit to the left of the
+    # decimal point; be sure to include this digit when setting the precision.
+    # Example
+    # :FORM:ASC:PREC 10 Set a precision of 10 digits. An example of the output is:
+    # -6.999999881E-01
+
+
+    #put the implementation here
+
+    # TODO: :FORMat[:DATA]
+
+    # :FORMat[:DATA]
+    # This command selects the data format that is used when transferring readings over the remote interface.
+    # Type Affected by Where saved Default value
+    # Command and query Recall settings
+    # Instrument reset
+    # Power cycle
+    # Save settings ASC
+    # Usage
+    # :FORMat[:DATA] <type>
+    # :FORMat[:DATA]?
+    # <type> The data format, which can be one of the following:
+    #  ASCII format: ASCii
+    #  IEEE Std. 754 double-precision format: REAL
+    #  IEEE Std. 754 single-precision format: SREal
+    # Details
+    # This command affects the output of READ?, FETCh?, MEASure:<function>?, and TRACe:DATA?
+    # queries over a remote interface. All other queries are returned in the ASCII format.
+    # The DAQ6510 only responds to input commands using the ASCII format, regardless of the data
+    # format that is selected for output strings.
+    # The IEEE Std 754 binary formats use four bytes for single-precision values and eight bytes for
+    # double-precision values.
+    # When data is written with any of the binary formats, the response message starts with #0 and ends
+    # with a new line. When data is written with the ASCII format, elements are separated with a comma
+    # and space.
+    # If you set this to REAL or SREAL, you have fewer options for buffer elements with the TRACe:DATA?,
+    # READ?, MEASURE:<function>?, and FETCh? commands. The only buffer elements available are
+    # READing, RELative, and EXTRa. If you request a buffer element that is not available, you see the
+    # event code 1133, "Parameter 4, Syntax error, expected valid name parameter."
+    # Example
+    # FORM REAL Set the format to double-precision format.
+    # Also see
+    # :TRACe:DATA? (on page 13-187)
+
+    # put the implementation here
 
     #####################
     # TRIGGER COMMANDS  #
@@ -395,7 +460,238 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     #CHANNEL RELATED COMMANDS
 
-    closed_channels = Instrument.control(
+
+    #TODO: :ROUTe[:CHANnel]:DELay
+
+    # :ROUTe[:CHANnel]:DELay
+    # This command sets additional delay time for specified channels.
+    # Type Affected by Where saved Default value
+    # Command and query Recall settings
+    # Instrument reset
+    # Power cycle
+    # Save settings 0
+    # Usage
+    # :ROUTe[:CHANnel]:DELay <delay>, (@<channelList>)
+    # :ROUTe[:CHANnel]:DELay? (@<channelList>)
+    # <channelList> The channels to set, using standard channel naming (on page 12-4)
+    # <delay> Delay time for the selected channels; minimum is 0 seconds
+    # Details
+    # After a channel closes, a command incurs the delay time indicated in the response for a channel
+    # before it completes. However, the internal settling time must elapse before the user delay is incurred.
+    # Therefore, the sequence is:
+    # 1. Command is processed
+    # 2. Channel closes
+    # 3. Settling time is incurred
+    # 4. Channel delay is incurred
+    # 5. Command completes
+    # The channel delay is an additional delay that is added after a channel is closed. You can use this
+    # delay to allow additional settling time for a signal on that channel. For most cards, the resolution of
+    # the delay is 10 μs. However, check the documentation for your card to verify. To see if the delay
+    # value was modified after setting, query the value.
+    # Setting a delay only applies to switch channels.
+    # The delay being specified may be updated based on the delay resolution of the card.
+    # The delay times are returned in a comma-delimited list in the same order that the channels are
+    # specified in the channel list parameter. A value of zero (0) indicates that no additional delay time is
+    # incurred before a close command completes.
+    # Pseudocards do not support user delays, so this value is always zero (0) if a pseudocard is used.
+    # The query returns the delays for the selected channels.
+    # Example
+    # ROUT:DEL 0.1, (@slot1)
+    # ROUT:DEL? (@slot1)
+    # Set a delay of 0.1 s for all channels in slot 1.
+    # Query the delay value for that slot. An example return:
+    # 0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.
+    # 1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0,0,0,0
+    # Also see
+    # None
+
+    # TODO: :ROUTe[:CHANnel]:LABel
+
+    # :ROUTe[:CHANnel]:LABel
+    # This command sets the label associated with a channel.
+    # Type Affected by Where saved Default value
+    # Command and query Recall settings
+    # Instrument reset
+    # Power cycle
+    # Save settings Empty string
+    # Usage
+    # :ROUTe[:CHANnel]:LABel "<label>", (@<channel>)
+    # :ROUTe[:CHANnel]:LABel? (@<channel>)
+    # <label> The label to assign to the specified channel; only one channel can be specified
+    # <channel> The channel for which to set or query the label
+    # Details
+    # This command sets the label of the specified channel to the label value. The label must be unique;
+    # you cannot assign the same label to more than one channel. Labels cannot start with a digit. They
+    # can be up to 19 characters. On the front panel of the instrument, only the first few characters are
+    # displayed.
+    # To clear a label, set it to an empty string ("").
+    # After defining a label, you can use it to specify the channel instead of using the channel number in
+    # commands.
+    # The query returns the label associated with the channel. If there is no label set, an empty string is
+    # returned.
+    # Example
+    # ROUT:LAB "", (@101)
+    # ROUT:LAB "First", (@101)
+    # ROUT:LAB? (@101)
+    # ROUT:LAB? (@First)
+    # Remove any existing label from channel 1 on slot 1.
+    # Assign the label name "First" to channel 1.
+    # Query the label using the slot and channel number.
+    # Query the label using the label name.
+    # Both return:
+    # First
+    # Also see
+    # None
+
+    # TODO: :ROUTe[:CHANnel]:MODE
+
+    # :ROUTe[:CHANnel]:MODE
+    # This command sets the mode of operation of a channel.
+    # Type Affected by Where saved Default value
+    # Command and query Recall settings
+    # Instrument reset
+    # Power cycle
+    # Save settings Digital I/O: INPut
+    # Totalizer: RISing
+    # Usage
+    # :ROUTe[:CHANnel]:MODE <mode>, (@<channelList>)
+    # :ROUTe[:CHANnel]:MODE? (@<channelList>)
+    # <mode> The mode of operation for a channel; for digital channels, the options are:
+    #  INPut: Sets the channels as input ports; query returns 0
+    #  OUTPut: Sets the channels as output ports; query returns 1
+    # For totalizer channels, the options are:
+    #  RISing: Count on the rising edge of the input signal; query returns 1
+    #  FALLing: Count on the falling edge of the input signal; query returns 0
+    #  RISING_RESET: Count on the rising edge of the input signal; the count is
+    # reset when the count is read; query returns 5
+    #  FALLING_RESET: Count on the falling edge of the input signal; the count is
+    # reset when the count is read; query returns 4
+    # For DAC channels, the query return is 17.
+    # <channelList> The channels to set, using standard channel naming (on page 12-4)
+    # Details
+    # You can set digital I/O channels to be input or output channels. Changing the mode from input to
+    # output adds an additional channel delay if a channel delay is set.
+    # For totalizer channels, you can set which side of the input signal to count on and whether or not to
+    # reset the count when the count is read.
+    # The specified channel list must define only one channel type. For example, channel list "121:125"
+    # is only valid if channels 21, 22, 23, 24, and 25 are the same type. If one of the channels is a different
+    # type of channel, the channel list is invalid and an error is generated.
+    # Changing the mode setting can impact the power consumption of the card. The instrument verifies
+    # that power is available before changing the mode. If there is not enough power, the command
+    # generates an error.
+    # This command is not available for switch and backplane channels.
+    # Example
+    # ROUT:MODE FALLING_RESET, (@125)
+    # ROUT:MODE? (@125)
+    # Assuming a 7706, set channel 25 in slot 1 to count on the
+    # falling edge and reset the count to 0.
+    # Verify the setting. Output is:
+    # 4
+    # Also see
+    # :ROUTe:CHANnel:DELay (on page 13-51)
+
+    # TODO: :ROUTe[:CHANnel]:READ?
+
+    # :ROUTe[:CHANnel]:READ?
+    # This command reads a value from a totalizer, DAC, or digital I/O channel.
+    # Type Affected by Where saved Default value
+    # Query only Not applicable Not applicable Not applicable
+    # Usage
+    # :ROUTe[:CHANnel]:READ? (@<channelList>)
+    # :ROUTe[:CHANnel]:READ? (@<channelList>), "<bufferName>"
+    # <channelList> The channels to set, using standard channel naming (on page 12-4)
+    # <bufferName> The name of the reading buffer where read values are stored; if no buffer is defined,
+    # value is stored in defbuffer1
+    # Details
+    # For totalizer channels, if the mode is set to a reset mode, the count is reset when this command is
+    # sent.
+    # Example
+    # ROUT:READ? (@125), "defbuffer1" Assuming a 7706, read the count from the totalizer channel.
+    # Store the information in defbuffer1.
+    # Also see
+    # None
+
+    # TODO: :ROUTe[:CHANnel]:STATe?
+
+    # :ROUTe[:CHANnel]:STATe?
+    # This command returns the state indicators of the channels in the instrument.
+    # Type Affected by Where saved Default value
+    # Query only Not applicable Not applicable Not applicable
+    # Usage
+    # :ROUTe[:CHANnel]:STATe?
+    # :ROUTe[:CHANnel]:STATe? (@<channelList>)
+    # <channelList> The channels to set, using standard channel naming (on page 12-4); if no channels
+    # are defined, all slots are returned
+    # Details
+    # This command returns the overload, match, closed, or open state of a channel. The states that can
+    # be returned depend on the type of channel.
+    # All channels can report an open or closed channel.
+    # Totalizer and digital I/O channels can report that a value has been matched.
+    # Totalizer channels can also report that the count has overflowed, which means the last value read
+    # was less than the previous value read. This occurs when the totalizer reaches 4,294,967,295 and
+    # automatically resets to zero between reads.
+    # Cards are returned sequentially by channel number.
+    # Each bit in the return represents a different indicator. Therefore, multiple indicators can be present
+    # (the OR operation is performed bitwise).
+    # Possible returns are:
+    # • 0: Channel is open
+    # • 1: Channel is closed
+    # • 4: Digital I/O or totalizer channel value is matched
+    # • 8: Totalizer channel has overflowed
+    # Example
+    # :ROUT:CLOS (@105)
+    # :ROUT:STAT? (@101:120)
+    # Close channel 5 on slot 1.
+    # Query the state of the first 20 channels on slot 1.
+    # Output (assuming a 7706):
+    # 0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    # Also see
+    # :ROUTe[:CHANnel]:MATCh (on page 13-53)
+
+
+
+    # :ROUTe[:CHANnel]:MULTiple:CLOSe
+    # This command closes the listed channels without affecting any other channels.
+    # Type Affected by Where saved Default value
+    # Command and query Not applicable Not applicable Not applicable
+    # Usage
+    # :ROUTe[:CHANnel]:MULTiple:CLOSe (@<channelList>)
+    # :ROUTe[:CHANnel]:MULTiple:CLOSe?
+    # <channelList> The list of channels to close
+    # Details
+    # This command closes the specified channels without affecting any other channels, including paired
+    # channels.
+    # The action of the close command depends on which, if any, function is set for the DMM.
+    # If no function is set, the listed channels or channel pairs are closed. You can select multiple channels.
+    # If the DMM for the channel is set to a function, the listed channels or channel pairs are closed. In
+    # addition, it opens channels or channel pairs that could affect the measurements. When a channel is
+    # set to a function, only one channel can be specified in the channel list.
+    # When you close a channel or channel pair, the instrument:
+    # • Closes the items in the list of channels.
+    # • Opens any channels on any slots that interfere with the measurement.
+    # • Incurs the settling time and any user-specified delay.
+    # This command is not available for digital I/O, digital-to-analog converter (DAC analog output), and
+    # totalizer channels. If the digital I/O, DAC analog output, or totalizer channel is in a range of channels,
+    # the unavailable channel is ignored. If you try to close it individually, an error is generated.
+    # The query returns a list of all closed channels, including non-measurement channels and paired
+    # channels for 4-wire functions.
+    # If the channel list is large, you should use *OPC or *OPC? with the multiple close. Monitor the status
+    # model for closure of the operation complete bit.
+    # Example
+    # ROUT:MULT:CLOS (@101)
+    # ROUT:MULT:CLOS (@102)
+    # ROUT:MULT:OPEN (@101)
+    # ROUT:OPEN:ALL
+    # ROUT:MULT:CLOS (@101,123)
+    # This example opens and closes channels without being set up
+    # for making measurement.
+    # Closes channel 101. Adds 102 to the closed channels, then
+    # opens 101, then opens all channels, then closes 101 and 123
+    # without setup for any measurement.
+    # Also see
+    # *OPC (on page A-7)
+
+    channels_close = Instrument.control(
         "ROUTe:MULTiple:CLOSe?\n", "ROUTe:MULTiple:CLOSe %s\n",
         """ Parameter that controls the opened and closed channels.
         All mentioned channels are closed, other channels will be opened.
@@ -410,7 +706,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         ],
     )
 
-    open_channels = Instrument.setting(
+    channels_open = Instrument.setting(
         "ROUTe:MULTiple:OPEN %s\n",
         """ A parameter that opens the specified list of channels. Can only
         be set.
@@ -420,7 +716,102 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         check_set_errors=True
     )
 
-    def get_state_of_channels(self, channels):  # ok
+    # TODO: TEST channels_get_type
+
+    # :ROUTe[:CHANnel]:TYPE?
+    # This command returns the type associated with a channel.
+    # Type Affected by Where saved Default value
+    # Query only Not applicable Not applicable Not applicable
+    # Usage
+    # :ROUTe[:CHANnel]:TYPE? (@<channelList>)
+    # <channelList> List of channels to query
+    # Details
+    # The channel type is defined by the physical hardware of the card on which the channel exists. The
+    # following are valid channel types:
+    # • BACK: Backplane channel
+    # • DAC: Digital-analog converter
+    # • DIG: Digital
+    # • DIO: Digital input/output
+    # • POLE: Two-pole or four-pole selection relay
+    # • RAD: Radio frequency
+    # • SWIT: Switch
+    # • TOT: Totalizer
+    # Refer to the documentation for your switching module for information about the channel types
+    # available for your switching module.
+    # Example
+    # rout:type? (@125) If a 7706 switching module is installed, channel 125 is a
+    # totalizer, so the return is:
+    # TOT
+    # rout:type? (@101) If the first channel is a switch, the return is:
+    # SWIT
+    # Also see
+    # None
+
+    def channels_get_type(self,channels):
+        """
+        This command returns the type associated with a channel.
+            following are valid channel types:
+            • BACK: Backplane channel
+            • DAC: Digital-analog converter
+            • DIG: Digital
+            • DIO: Digital input/output
+            • POLE: Two-pole or four-pole selection relay
+            • RAD: Radio frequency
+            • SWIT: Switch
+            • TOT: Totalizer
+        """
+        clist = clist_validator(channels,self.CHANNELSLIST_VALUES)
+        # print(":ROUTe:CHANnel:TYPE? %s" % clist + '\n')
+        channels_types = self.ask(":ROUTe:CHANnel:TYPE? %s" % clist + '\n')
+        # print(channels_types)
+        return channels_types
+
+    # :ROUTe[:CHANnel]:CLOSe:COUNt?
+    # This command returns the number of times the relays have been closed for the specified channels.
+    # Type Affected by Where saved Default value
+    # Query only Not applicable Not applicable Not applicable
+    # Usage
+    # :ROUTe[:CHANnel]:CLOSe:COUNt? (@<channelList>)
+    # <channelList> The channels to set, using standard channel naming (on page 12-4)
+    # Details
+    # The DAQ6510 keeps an internal count of the number of times each relay has been closed. This count
+    # can help you determine when relays require replacement. Refer to the switching module
+    # documentation for the contact life specifications for the relays.
+    # If channels are specified, the count values are returned in the order in which the channels are
+    # specified. If slots are specified, the response lists the channels starting from lowest to highest.
+    # Because each slot is processed completely before going to the next, all slot 1 channels are listed
+    # before slot 2 channels.
+    # Relay closures are counted only when a relay cycles from open to closed state.
+    # It is good practice to get the relay count at the end of a program. This saves the latest count to
+    # memory.
+    # Example
+    # ROUT:CLOS:COUN? (@101,104) Query the closure count of channels 1 and 4 of a module in slot 1.
+    # Example return:
+    # 10,3
+    # ROUT:CLOS:COUN? (@allslots) Query the closure count of channels in all slots. Example return:
+    # 10,8,6,3,4,4,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,10,120
+    # 01,12002,12003,12004,12005,12006,12007,12008,120
+    # 09,12010,12011,12012,12013,12014,12015,12016,120
+    # 17,12018,12019,12020,12021,12022,12023,12024,120
+    # 25,12026,12027,12028,12029,12030,12031,12032,120
+    # 33,12034,12035,12036,12037,12038,12039,12040
+    # Also see
+    # :ROUTe[:CHANnel]:CLOSe:COUNt:INTerval (on page 13-48)
+
+    #TODO: TEST channels_get_count
+
+    def channels_get_count(self,channels):
+        """
+         This method returns the number of times the relays have been closed for the specified channels.
+         Type Affected by Where saved Default value
+        """
+        clist = clist_validator(channels,self.CHANNELSLIST_VALUES)
+        # print(":ROUTe:CHANnel:CLOSe:COUNt? %s" % clist + '\n')
+        channels_counts = self.ask(":ROUTe[:CHANnel]:CLOSe:COUNt? %s" % clist + '\n')
+        # print(channels_counts)
+        return channels_counts
+
+    def channels_get_state_of(self, channels):  # ok
         """ Get the open or closed state of the specified channels
 
         :param channels: a list of channel numbers, or single channel number
@@ -431,33 +822,33 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         # print(state)
         return state
 
-    def open_all_channels(self):  # ok
+    def channels_open_all(self):  # ok
         """ Open all channels of the Keithley DAQ6510.
         """
         self.write(":ROUTe:OPEN:ALL\n")
 
-    def close_individual_channels(self, channels):
+    def channels_set_close(self, channels):
         """ Closes (connects) the channels of the cardModel connection matrix.
 
         :param channels: list or tuple of channels to close; can also be "all"
             """
         if isinstance(channels, str) and channels == "all":
-            self.closed_channels = self.CHANNELSLIST_VALUES
+            self.channels_close = self.CHANNELSLIST_VALUES
         else:
-            self.closed_channels = channels
+            self.channels_close = channels
 
-    def open_individual_channels(self, channels):
+    def channels_set_open(self, channels):
         """ Opens (unconnects) the channels of the cardModel connection matrix.
 
         :param channels: list or tuple of channels to open; can also be "all"
             """
         if isinstance(channels, str) and channels == "all":
-            self.open_channels = self.CHANNELSLIST_VALUES
+            self.channels_open = self.CHANNELSLIST_VALUES
         else:
-            self.open_channels = channels
+            self.channels_open = channels
 
-    def close_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, instrumentNSlots=2,
-                              slot=1):  # ok
+    def channels_close_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, instrumentNSlots=2,
+                                       slot=1):  # ok
         """ Closes (connects) the channels between column(s) and row(s)
         of the cardModel connection matrix.
         Only one of the parameters `rows' or 'columns' can be "all"
@@ -473,12 +864,12 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :param slot: slot number (1 or 2) of the DAQ6510
         """
 
-        channels = self.channels_from_rows_columns(rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots,
-                                                   slot)
-        self.closed_channels = channels
+        channels = self.channels_get_numbers_from_rows_columns(rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots,
+                                                               slot)
+        self.channels_close = channels
 
-    def open_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, instrumentNSlots=2,
-                             slot=1):  # ok
+    def channels_open_rows_to_columns(self, rows, columns, cardModel='7700', cardNRows=2, cardNColumns=10, instrumentNSlots=2,
+                                      slot=1):  # ok
         """ Opens (disconnects) the channels between column(s) and row(s)
         of the cardModel connection matrix.
         Only one of the parameters `rows' or 'columns' can be "all"
@@ -495,12 +886,12 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         :param slot: slot number (1 or 2) of the DAQ6510
         """
 
-        channels = self.channels_from_rows_columns(rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots,
-                                                   slot)
-        self.open_channels = channels
+        channels = self.channels_get_numbers_from_rows_columns(rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots,
+                                                               slot)
+        self.channels_open = channels
 
-    def channels_from_rows_columns(self, rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots,
-                                   slot=None):  # ok
+    def channels_get_numbers_from_rows_columns(self, rows, columns, cardModel, cardNRows, cardNColumns, instrumentNSlots,
+                                               slot=None):  # ok
         """ Determine the channel numbers between column(s) and row(s) of the
         cardModel connection matrix. Returns a list of channel numbers.
         Only one of the parameters `rows' or 'columns' can be "all"
@@ -1065,7 +1456,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         self.display_control = brightness
 
         # Get the closed channels and make a string of the list
-        channels = self.closed_channels
+        channels = self.channels_close
         channel_string = " ".join([
             str(channel % 100) for channel in channels
         ])

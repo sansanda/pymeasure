@@ -32,7 +32,7 @@ def clist_validator(value, values):  # ok
     ValueError.
 
     :param value: A value to test
-    :param values: A range of values (range, list, etc.)
+    :param values: A range of valid values  (range, list, etc.)
     :raises: ValueError if the value is out of the range
 
     For example
