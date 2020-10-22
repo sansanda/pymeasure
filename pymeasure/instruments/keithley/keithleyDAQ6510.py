@@ -153,27 +153,35 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     # at CHANNELSLIST_VALUES[0] is a 7700 card is pugged to the slot 1 of the instrument
     CHANNELSLIST_VALUES = list()
 
+    #####################
+    #  FORMAT COMMANDS  #
+    #####################
+
+    # FORMat subsystem
+    # The commands for this subsystem select the data format that is used to transfer instrument readings
+    # over the remote interface.
+
 
 
     #####################
     # TRIGGER COMMANDS  #
     #####################
 
-    def pause_trigger(self):
+    def trigger_pause(self):
         """
         This command pauses a running scan.
         To continue the trigger model and the scan, send the resume command.
         """
         self.write(":TRIGger:PAUSe\n")
 
-    def resume_trigger(self):
+    def trigger_resume(self):
         """
         This command continues a paused scan or trigger model.
         This command continues running the scan or trigger model operation if the scan or trigger model was paused.
         """
         self.write(":TRIGger:RESume\n")
 
-    def get_trigger_model_state(self):
+    def trigger_get_model_state(self):
         """
         This command returns the state of the trigger model. The instrument checks the state of a started
         trigger model every 100 ms.
@@ -194,14 +202,14 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         """
         self.ask(":TRIGger:STATe?\n")
 
-    def abort_triggerModel_or_scans(self):
+    def trigger_abort_trigger_model_or_scans(self):
         """
         This command stops all trigger model commands and scans on the instrument.
         When this command is received, the instrument stops the trigger model and scans.
         """
         self.write(":ABORt\n")
 
-    def init_triggerModel_or_scans(self):
+    def trigger_init_trigger_model_or_scans(self):
         """
         This method starts the trigger model or scan.
         """
@@ -314,13 +322,13 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
        """
     )
 
-    def get_scan_count_step(self):
+    def scan_get_count_step(self):
         """ Method that gets info actual step of a running scan.
             Example: Responds with the present step count. Output assuming there are five steps in the scan list: 5 """
 
         return self.scan_count_step
 
-    def get_scan_count(self):
+    def scan_get_count(self):
         """ Method that gets info about the scan state.
         Return can be:
         • Idle: The trigger model is stopped
@@ -335,7 +343,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
         return self.scan_state
 
-    def get_scan_state(self):
+    def scan_get_state(self):
         """ Method that gets info about the scan state.
         Return can be:
         • Idle: The trigger model is stopped
@@ -350,36 +358,36 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
         return self.scan_state
 
-    def set_scan_start_stimulus(self, eventID):
+    def scan_set_start_stimulus(self, eventID):
         self.scan_start_stimulus = eventID
 
-    def enable_scan_restart(self, enable):
+    def scan_enable_restart(self, enable):
         self.scan_restart = enable
 
-    def set_scan_mode(self, mode):
+    def scan_set_mode(self, mode):
         """ Configure the scan mode parameter of an existing scan
                 :param mode: An str with the mode of the scan to be configured"""
         self.scan_mode = mode
 
-    def set_scan_interval(self, interval):
+    def scan_set_interval(self, interval):
         """ Configure the interval parameter of an existing scan
         :param count: The count of the scan to be configured
         """
         self.scan_interval = interval
 
-    def set_scan_count(self, count):
+    def scan_set_count(self, count):
         """ Configure the count parameter of an existing scan
         :param count: The count of the scan to be configured
         """
         self.scan_count = count
 
-    def add_channels_to_scan(self, channels):  # ok
+    def scan_add_channels_to(self, channels):  # ok
         """ Create an scan done the channels input parameter
         :param channels: a list of channel numbers to be included in the scan
         """
         self.scan_add = channels
 
-    def create_scan(self, channels):  # ok
+    def scan_create_scan(self, channels):  # ok
         """ Create an scan done the channels input parameter
         :param channels: a list of channel numbers to be included in the scan
         """
@@ -899,12 +907,14 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
         self.write("*TRG\n")
 
+    # Overrides the Instrument superclass method
     def reset(self):  # ok
         """ This command resets the instrument settings to their default values and clears the reading buffers.
         Returns the instrument to default settings, cancels all pending commands, and cancels the response to any previously received *OPC and *OPC? commands.
         """
         self.write("*RST\n")
 
+    #Overrides the Instrument superclass method
     def cls(self):
         """
         This command clears the event registers and queues.
