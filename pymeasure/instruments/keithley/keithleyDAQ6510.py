@@ -50,6 +50,8 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     """
 
+    VALID_FORMAT_ASCII_PRECISION_VALUES = [0, 16]
+    VALID_FORMAT_DATA_VALUES = ["ASCii","REAL","SREal"]
     VALID_SENSE_THERMOCOUPLE_TYPES = [
         'B',
         'E',
@@ -161,72 +163,107 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     # The commands for this subsystem select the data format that is used to transfer instrument readings
     # over the remote interface.
 
+    format_ascii_precision = Instrument.control(
+        ":FORMat:ASCii:PRECision?\n", ":FORMat:ASCii:PRECision %d\n",
+        """ Sets the precision (number of digits) for all numbers returned in the ASCII format.
+            Type Affected by Where saved Default value """,
+        validator=strict_range,
+        values=VALID_FORMAT_ASCII_PRECISION_VALUES,
+        check_get_errors=True,
+        check_set_errors=True,
+        separator=None,
+        cast=int
+    )
 
-    # TODO: FORMat:ASCii:PRECision
+    format_data_type = Instrument.control(
+        ":FORMat:DATA?\n", ":FORMat:DATA %d\n",
+        """ This command selects the data format that is used when transferring 
+        readings over the remote interface.""",
+        validator=strict_discrete_set,
+        values=VALID_FORMAT_DATA_VALUES,
+        check_get_errors=True,
+        check_set_errors=True,
+        separator=None
+    )
 
-    # :FORMat:ASCii:PRECision
-    # This command sets the precision (number of digits) for all numbers returned in the ASCII format.
-    # Type Affected by Where saved Default value
-    # Command and query Recall settings
-    # Instrument reset
-    # Power cycle
-    # Save settings 0
-    # Usage
-    # :FORMat:ASCii:PRECision <value>
-    # :FORMat:ASCii:PRECision <DEF|MIN|MAX>
-    # :FORMat:ASCii:PRECision?
-    # :FORMat:ASCii:PRECision? <DEF|MIN|MAX>
-    # <value> The precision:
-    #  Automatic: 0
-    #  Specific value: 1 to 16
-    # <DEF|MIN|MAX> The DEFault, MINimum, or MAXimum value
-    # Details
-    # This attribute specifies the precision (number of digits) for queries.
-    # Note that the precision is the number of significant digits. There is always one digit to the left of the
-    # decimal point; be sure to include this digit when setting the precision.
-    # Example
-    # :FORM:ASC:PREC 10 Set a precision of 10 digits. An example of the output is:
-    # -6.999999881E-01
+    # TODO: Test  format_set_ascii_precision(self, precision) and format_get_ascii_precision(self)
 
+    def format_set_ascii_precision(self, precision):
+        """
+         This command sets the precision (number of digits) for all numbers returned in the ASCII format.
+         Type Affected by Where saved Default value
+         Command and query Recall settings
+         Instrument reset
+         Power cycle
+         Save settings 0
+         Usage
+         :FORMat:ASCii:PRECision <value>
+         :FORMat:ASCii:PRECision <DEF|MIN|MAX>
+         :FORMat:ASCii:PRECision?
+         :FORMat:ASCii:PRECision? <DEF|MIN|MAX>
+         <value> The precision:
+          Automatic: 0
+          Specific value: 1 to 16
+         <DEF|MIN|MAX> The DEFault, MINimum, or MAXimum value
+          Details
+         This attribute specifies the precision (number of digits) for queries.
+         Note that the precision is the number of significant digits. There is always one digit to the left of the
+         decimal point; be sure to include this digit when setting the precision.
+         Example
+         :FORM:ASC:PREC 10 Set a precision of 10 digits. An example of the output is:
+         -6.999999881E-01
 
-    #put the implementation here
+         :param precision: An int between 0 and 16
+         :return: None
+        """
+        self.format_ascii_precision = precision
 
-    # TODO: :FORMat[:DATA]
+    def format_get_ascii_precision(self):
+        """
+         This command gets the precision (number of digits) for all numbers returned in the ASCII format.
+         :param precision: self
+         :return: The actual ascii precision of the instrument
+        """
+        return self.format_ascii_precision
 
-    # :FORMat[:DATA]
-    # This command selects the data format that is used when transferring readings over the remote interface.
-    # Type Affected by Where saved Default value
-    # Command and query Recall settings
-    # Instrument reset
-    # Power cycle
-    # Save settings ASC
-    # Usage
-    # :FORMat[:DATA] <type>
-    # :FORMat[:DATA]?
-    # <type> The data format, which can be one of the following:
-    #  ASCII format: ASCii
-    #  IEEE Std. 754 double-precision format: REAL
-    #  IEEE Std. 754 single-precision format: SREal
-    # Details
-    # This command affects the output of READ?, FETCh?, MEASure:<function>?, and TRACe:DATA?
-    # queries over a remote interface. All other queries are returned in the ASCII format.
-    # The DAQ6510 only responds to input commands using the ASCII format, regardless of the data
-    # format that is selected for output strings.
-    # The IEEE Std 754 binary formats use four bytes for single-precision values and eight bytes for
-    # double-precision values.
-    # When data is written with any of the binary formats, the response message starts with #0 and ends
-    # with a new line. When data is written with the ASCII format, elements are separated with a comma
-    # and space.
-    # If you set this to REAL or SREAL, you have fewer options for buffer elements with the TRACe:DATA?,
-    # READ?, MEASURE:<function>?, and FETCh? commands. The only buffer elements available are
-    # READing, RELative, and EXTRa. If you request a buffer element that is not available, you see the
-    # event code 1133, "Parameter 4, Syntax error, expected valid name parameter."
-    # Example
-    # FORM REAL Set the format to double-precision format.
-    # Also see
-    # :TRACe:DATA? (on page 13-187)
+    # TODO: Test  format_set_data_type(self, data_type) and format_get_data_type(self)
 
-    # put the implementation here
+    def format_set_data_type(self, data_type):
+        """
+        # This command selects the data format that is used when transferring readings over the remote interface.
+        Usage
+        :FORMat[:DATA] <type>
+        :FORMat[:DATA]?
+        <type> The data format, which can be one of the following:
+         ASCII format: ASCii
+         IEEE Std. 754 double-precision format: REAL
+         IEEE Std. 754 single-precision format: SREal
+
+        Details
+        This command affects the output of READ?, FETCh?, MEASure:<function>?, and TRACe:DATA?
+        queries over a remote interface. All other queries are returned in the ASCII format.
+        The DAQ6510 only responds to input commands using the ASCII format, regardless of the data
+        format that is selected for output strings.
+        The IEEE Std 754 binary formats use four bytes for single-precision values and eight bytes for
+        double-precision values.
+        When data is written with any of the binary formats, the response message starts with #0 and ends
+        with a new line. When data is written with the ASCII format, elements are separated with a comma
+        and space.
+        If you set this to REAL or SREAL, you have fewer options for buffer elements with the TRACe:DATA?,
+        READ?, MEASURE:<function>?, and FETCh? commands. The only buffer elements available are
+        READing, RELative, and EXTRa. If you request a buffer element that is not available, you see the
+        event code 1133, "Parameter 4, Syntax error, expected valid name parameter."
+        Example
+        FORM REAL Set the format to double-precision format.
+        Also see
+        :TRACe:DATA? (on page 13-187)
+        :return:
+        """
+        self.format_data_type = data_type
+
+    def format_get_data_type(self):
+        """This command selects the data format that is used when transferring readings over the remote interface."""
+        return self.format_data_type
 
     #####################
     # TRIGGER COMMANDS  #
@@ -590,65 +627,64 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     # Also see
     # :ROUTe:CHANnel:DELay (on page 13-51)
 
-    # TODO: :ROUTe[:CHANnel]:READ?
+    # TODO: Test channels_read(self, channels, bufferName='defbuffer1')
 
-    # :ROUTe[:CHANnel]:READ?
-    # This command reads a value from a totalizer, DAC, or digital I/O channel.
-    # Type Affected by Where saved Default value
-    # Query only Not applicable Not applicable Not applicable
-    # Usage
-    # :ROUTe[:CHANnel]:READ? (@<channelList>)
-    # :ROUTe[:CHANnel]:READ? (@<channelList>), "<bufferName>"
-    # <channelList> The channels to set, using standard channel naming (on page 12-4)
-    # <bufferName> The name of the reading buffer where read values are stored; if no buffer is defined,
-    # value is stored in defbuffer1
-    # Details
-    # For totalizer channels, if the mode is set to a reset mode, the count is reset when this command is
-    # sent.
-    # Example
-    # ROUT:READ? (@125), "defbuffer1" Assuming a 7706, read the count from the totalizer channel.
-    # Store the information in defbuffer1.
-    # Also see
-    # None
+    def channels_read(self, channels, bufferName='defbuffer1'):
+        """
+        This command reads a value from a totalizer, DAC, or digital I/O channel.
+        Details
+        For totalizer channels, if the mode is set to a reset mode, the count is reset when this command is sent.
+        Example
+        ROUT:READ? (@125), "defbuffer1" Assuming a 7706, read the count from the totalizer channel.
+        Store the information in defbuffer1
+        :param channels: A list or tuple with the number of channels to read
+        :param bufferName: An str with the name of the reading buffer where read values are stored
+        :return: The reading
+        """
 
-    # TODO: :ROUTe[:CHANnel]:STATe?
+        clist = clist_validator(channels, self.CHANNELSLIST_VALUES)
+        # print(":ROUTe:CHANnel:READ? %s, %s" % clist % bufferName + '\n')
+        channels_readings = self.ask(":ROUTe:CHANnel:READ? %s, %s" % clist % bufferName + '\n')
+        # print(channels_readings)
+        return channels_readings
 
-    # :ROUTe[:CHANnel]:STATe?
-    # This command returns the state indicators of the channels in the instrument.
-    # Type Affected by Where saved Default value
-    # Query only Not applicable Not applicable Not applicable
-    # Usage
-    # :ROUTe[:CHANnel]:STATe?
-    # :ROUTe[:CHANnel]:STATe? (@<channelList>)
-    # <channelList> The channels to set, using standard channel naming (on page 12-4); if no channels
-    # are defined, all slots are returned
-    # Details
-    # This command returns the overload, match, closed, or open state of a channel. The states that can
-    # be returned depend on the type of channel.
-    # All channels can report an open or closed channel.
-    # Totalizer and digital I/O channels can report that a value has been matched.
-    # Totalizer channels can also report that the count has overflowed, which means the last value read
-    # was less than the previous value read. This occurs when the totalizer reaches 4,294,967,295 and
-    # automatically resets to zero between reads.
-    # Cards are returned sequentially by channel number.
-    # Each bit in the return represents a different indicator. Therefore, multiple indicators can be present
-    # (the OR operation is performed bitwise).
-    # Possible returns are:
-    # • 0: Channel is open
-    # • 1: Channel is closed
-    # • 4: Digital I/O or totalizer channel value is matched
-    # • 8: Totalizer channel has overflowed
-    # Example
-    # :ROUT:CLOS (@105)
-    # :ROUT:STAT? (@101:120)
-    # Close channel 5 on slot 1.
-    # Query the state of the first 20 channels on slot 1.
-    # Output (assuming a 7706):
-    # 0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    # Also see
-    # :ROUTe[:CHANnel]:MATCh (on page 13-53)
+    # TODO: Test channels_get_state(self, channels)
 
+    def channels_get_state(self, channels):
+        """
+        This command returns the state indicators of the channels in the instrument.
+        Details
+        This command returns the overload, match, closed, or open state of a channel. The states that can
+        be returned depend on the type of channel.
+        All channels can report an open or closed channel.
+        Totalizer and digital I/O channels can report that a value has been matched.
+        Totalizer channels can also report that the count has overflowed, which means the last value read
+        was less than the previous value read. This occurs when the totalizer reaches 4,294,967,295 and
+        automatically resets to zero between reads.
+        Cards are returned sequentially by channel number.
+        Each bit in the return represents a different indicator. Therefore, multiple indicators can be present
+        (the OR operation is performed bitwise).
+        Possible returns are:
+        • 0: Channel is open
+        • 1: Channel is closed
+        • 4: Digital I/O or totalizer channel value is matched
+        • 8: Totalizer channel has overflowed
+        Example
+        :ROUT:CLOS (@105)
+        :ROUT:STAT? (@101:120)
+        Close channel 5 on slot 1.
+        Query the state of the first 20 channels on slot 1.
+        Output (assuming a 7706):
+        0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        Also see
+        :ROUTe[:CHANnel]:MATCh (on page 13-53)
+        """
 
+        clist = clist_validator(channels, self.CHANNELSLIST_VALUES)
+        # print(":ROUTe:CHANnel:STATe? %s " % clist + '\n')
+        channels_state = self.ask(":ROUTe:CHANnel:STATe? %s " % clist + '\n')
+        # print(channels_state)
+        return channels_state
 
     # :ROUTe[:CHANnel]:MULTiple:CLOSe
     # This command closes the listed channels without affecting any other channels.
@@ -718,36 +754,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     # TODO: TEST channels_get_type
 
-    # :ROUTe[:CHANnel]:TYPE?
-    # This command returns the type associated with a channel.
-    # Type Affected by Where saved Default value
-    # Query only Not applicable Not applicable Not applicable
-    # Usage
-    # :ROUTe[:CHANnel]:TYPE? (@<channelList>)
-    # <channelList> List of channels to query
-    # Details
-    # The channel type is defined by the physical hardware of the card on which the channel exists. The
-    # following are valid channel types:
-    # • BACK: Backplane channel
-    # • DAC: Digital-analog converter
-    # • DIG: Digital
-    # • DIO: Digital input/output
-    # • POLE: Two-pole or four-pole selection relay
-    # • RAD: Radio frequency
-    # • SWIT: Switch
-    # • TOT: Totalizer
-    # Refer to the documentation for your switching module for information about the channel types
-    # available for your switching module.
-    # Example
-    # rout:type? (@125) If a 7706 switching module is installed, channel 125 is a
-    # totalizer, so the return is:
-    # TOT
-    # rout:type? (@101) If the first channel is a switch, the return is:
-    # SWIT
-    # Also see
-    # None
-
-    def channels_get_type(self,channels):
+    def channels_get_type(self, channels):
         """
         This command returns the type associated with a channel.
             following are valid channel types:
@@ -759,6 +766,14 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
             • RAD: Radio frequency
             • SWIT: Switch
             • TOT: Totalizer
+        Example
+        rout:type? (@125) If a 7706 switching module is installed, channel 125 is a
+        totalizer, so the return is:
+        TOT
+        rout:type? (@101) If the first channel is a switch, the return is:
+        SWIT
+        :param channels: A list or tuple of channels to get the type
+        :return the channels_types
         """
         clist = clist_validator(channels,self.CHANNELSLIST_VALUES)
         # print(":ROUTe:CHANnel:TYPE? %s" % clist + '\n')
@@ -766,45 +781,42 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         # print(channels_types)
         return channels_types
 
-    # :ROUTe[:CHANnel]:CLOSe:COUNt?
-    # This command returns the number of times the relays have been closed for the specified channels.
-    # Type Affected by Where saved Default value
-    # Query only Not applicable Not applicable Not applicable
-    # Usage
-    # :ROUTe[:CHANnel]:CLOSe:COUNt? (@<channelList>)
-    # <channelList> The channels to set, using standard channel naming (on page 12-4)
-    # Details
-    # The DAQ6510 keeps an internal count of the number of times each relay has been closed. This count
-    # can help you determine when relays require replacement. Refer to the switching module
-    # documentation for the contact life specifications for the relays.
-    # If channels are specified, the count values are returned in the order in which the channels are
-    # specified. If slots are specified, the response lists the channels starting from lowest to highest.
-    # Because each slot is processed completely before going to the next, all slot 1 channels are listed
-    # before slot 2 channels.
-    # Relay closures are counted only when a relay cycles from open to closed state.
-    # It is good practice to get the relay count at the end of a program. This saves the latest count to
-    # memory.
-    # Example
-    # ROUT:CLOS:COUN? (@101,104) Query the closure count of channels 1 and 4 of a module in slot 1.
-    # Example return:
-    # 10,3
-    # ROUT:CLOS:COUN? (@allslots) Query the closure count of channels in all slots. Example return:
-    # 10,8,6,3,4,4,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,10,120
-    # 01,12002,12003,12004,12005,12006,12007,12008,120
-    # 09,12010,12011,12012,12013,12014,12015,12016,120
-    # 17,12018,12019,12020,12021,12022,12023,12024,120
-    # 25,12026,12027,12028,12029,12030,12031,12032,120
-    # 33,12034,12035,12036,12037,12038,12039,12040
-    # Also see
-    # :ROUTe[:CHANnel]:CLOSe:COUNt:INTerval (on page 13-48)
-
     #TODO: TEST channels_get_count
 
     def channels_get_count(self,channels):
         """
-         This method returns the number of times the relays have been closed for the specified channels.
-         Type Affected by Where saved Default value
+        This method returns the number of times the relays have been closed for the specified channels.
+        Usage
+        :ROUTe[:CHANnel]:CLOSe:COUNt? (@<channelList>)
+        <channelList> The channels to set, using standard channel naming (on page 12-4)
+        Details
+        The DAQ6510 keeps an internal count of the number of times each relay has been closed. This count
+        can help you determine when relays require replacement. Refer to the switching module
+        documentation for the contact life specifications for the relays.
+        If channels are specified, the count values are returned in the order in which the channels are
+        specified. If slots are specified, the response lists the channels starting from lowest to highest.
+        Because each slot is processed completely before going to the next, all slot 1 channels are listed
+        before slot 2 channels.
+        Relay closures are counted only when a relay cycles from open to closed state.
+        It is good practice to get the relay count at the end of a program. This saves the latest count to
+        memory.
+        Example
+        ROUT:CLOS:COUN? (@101,104) Query the closure count of channels 1 and 4 of a module in slot 1.
+        Example return:
+        10,3
+        ROUT:CLOS:COUN? (@allslots) Query the closure count of channels in all slots. Example return:
+        10,8,6,3,4,4,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,10,120
+        01,12002,12003,12004,12005,12006,12007,12008,120
+        09,12010,12011,12012,12013,12014,12015,12016,120
+        17,12018,12019,12020,12021,12022,12023,12024,120
+        25,12026,12027,12028,12029,12030,12031,12032,120
+        33,12034,12035,12036,12037,12038,12039,12040
+        Also see
+        :ROUTe[:CHANnel]:CLOSe:COUNt:INTerval (on page 13-48)
+        :param channels: A list or tuple of channels to get the count
+        :return the channels_counts
         """
+
         clist = clist_validator(channels,self.CHANNELSLIST_VALUES)
         # print(":ROUTe:CHANnel:CLOSe:COUNt? %s" % clist + '\n')
         channels_counts = self.ask(":ROUTe[:CHANnel]:CLOSe:COUNt? %s" % clist + '\n')
@@ -814,7 +826,8 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     def channels_get_state_of(self, channels):  # ok
         """ Get the open or closed state of the specified channels
 
-        :param channels: a list of channel numbers, or single channel number
+        :param channels: A list or tuple of channels to get the state
+        :return the channels_states
         """
         clist = clist_validator(channels, self.CHANNELSLIST_VALUES)
         # print("ROUTe:MULTiple:STATe? %s" % clist + '\n')
