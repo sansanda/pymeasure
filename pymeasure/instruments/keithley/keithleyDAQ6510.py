@@ -50,7 +50,8 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     """
 
-    VALID_FORMAT_ASCII_PRECISION_VALUES = [0, 16]
+    VALID_CHANNEL_DELAY_RANGE = [0, 1000000] # we decide to set the max delay up to 1.000.000 seconds
+    VALID_FORMAT_ASCII_PRECISION_RANGE = [0, 16]
     VALID_FORMAT_DATA_VALUES = ["ASCii","REAL","SREal"]
     VALID_SENSE_THERMOCOUPLE_TYPES = [
         'B',
@@ -155,6 +156,36 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
     # at CHANNELSLIST_VALUES[0] is a 7700 card is pugged to the slot 1 of the instrument
     CHANNELSLIST_VALUES = list()
 
+
+    """
+    :READ? This query makes measurements, places them in a reading buffer, and returns the last reading.  
+    Usage 
+    :READ? 
+    :READ? "<bufferName>" 
+    :READ? "<bufferName>", <bufferElements> 
+    <bufferName> The name of the buffer where the reading is stored; if nothing is specified, defbuffer1 is used <bufferElements> 
+    See Details; if nothing is specified, READing is used 
+    Details This query makes the number of readings specified by [:SENSe[1]]:COUNt. 
+    If multiple readings are made, all readings are available in the reading buffer. 
+    However, only the last reading is returned as a reading with the command. To get multiple readings, use the :TRACe:DATA? command. 
+    To change the number of digits returned in a remote command reading, use the :FORMat:ASCii:PRECision command. 
+    If you define a specific reading buffer, the reading buffer must exist before you make the measurement. 
+    """
+
+    #TODO:  read(self, bufferName="'defbuffer1'", bufferElements=('CHAN','SEConds','TSTamp','READing'))
+
+    def read(self, bufferName="'defbuffer1'", bufferElements=('CHAN','SEConds','TSTamp','READing')):
+        #firts validate bufferElements
+
+        #construct the command string
+        #command = ....
+        #send the commnad string and recover the result
+        reading = self.ask(":READ? %s, %s" % (bufferName, bufferElements)+ '\n')
+        #treate the result and return it
+        #print(reading)
+        return reading
+
+
     #####################
     #  FORMAT COMMANDS  #
     #####################
@@ -168,7 +199,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         """ Sets the precision (number of digits) for all numbers returned in the ASCII format.
             Type Affected by Where saved Default value """,
         validator=strict_range,
-        values=VALID_FORMAT_ASCII_PRECISION_VALUES,
+        values=VALID_FORMAT_ASCII_PRECISION_RANGE,
         check_get_errors=True,
         check_set_errors=True,
         separator=None,
@@ -497,50 +528,87 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     #CHANNEL RELATED COMMANDS
 
+    #TODO: Test channels_set_delay(self, channels, delay), channels_get_delay_at_slot1(self), channels_get_delay_at_slot2(self)
 
-    #TODO: :ROUTe[:CHANnel]:DELay
+    channels_delay = Instrument.setting(
+        ":ROUTe:CHANnel:DELay %s\n",
+        """ This property sets additional delay time for specified channels. """,
+        validator=joined_validators_values(strict_range, clist_validator, separatorsList=['', ',']),
+        values=(VALID_CHANNEL_DELAY_RANGE, CHANNELSLIST_VALUES),
+        check_set_errors=True,
+        separator=None
+    )
 
-    # :ROUTe[:CHANnel]:DELay
-    # This command sets additional delay time for specified channels.
-    # Type Affected by Where saved Default value
-    # Command and query Recall settings
-    # Instrument reset
-    # Power cycle
-    # Save settings 0
-    # Usage
-    # :ROUTe[:CHANnel]:DELay <delay>, (@<channelList>)
-    # :ROUTe[:CHANnel]:DELay? (@<channelList>)
-    # <channelList> The channels to set, using standard channel naming (on page 12-4)
-    # <delay> Delay time for the selected channels; minimum is 0 seconds
-    # Details
-    # After a channel closes, a command incurs the delay time indicated in the response for a channel
-    # before it completes. However, the internal settling time must elapse before the user delay is incurred.
-    # Therefore, the sequence is:
-    # 1. Command is processed
-    # 2. Channel closes
-    # 3. Settling time is incurred
-    # 4. Channel delay is incurred
-    # 5. Command completes
-    # The channel delay is an additional delay that is added after a channel is closed. You can use this
-    # delay to allow additional settling time for a signal on that channel. For most cards, the resolution of
-    # the delay is 10 μs. However, check the documentation for your card to verify. To see if the delay
-    # value was modified after setting, query the value.
-    # Setting a delay only applies to switch channels.
-    # The delay being specified may be updated based on the delay resolution of the card.
-    # The delay times are returned in a comma-delimited list in the same order that the channels are
-    # specified in the channel list parameter. A value of zero (0) indicates that no additional delay time is
-    # incurred before a close command completes.
-    # Pseudocards do not support user delays, so this value is always zero (0) if a pseudocard is used.
-    # The query returns the delays for the selected channels.
-    # Example
-    # ROUT:DEL 0.1, (@slot1)
-    # ROUT:DEL? (@slot1)
-    # Set a delay of 0.1 s for all channels in slot 1.
-    # Query the delay value for that slot. An example return:
-    # 0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.
-    # 1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0,0,0,0
-    # Also see
-    # None
+    channels_delay_at_slot1 = Instrument.measurement(
+        ":ROUTe:CHANnel:DELay? (@slot1)\n",
+        """ This property gets the delay time for all channels at slot1. """
+    )
+
+    channels_delay_at_slot2 = Instrument.measurement(
+        ":ROUTe:CHANnel:DELay? (@slot2)\n",
+        """ This property gets the delay time for all channels at slot2. """
+    )
+
+    def channels_set_delay(self, channels, delay):
+        """
+        This command sets additional delay time for specified channels.
+        Type Affected by Where saved Default value
+        Command and query Recall settings
+        Instrument reset
+        Power cycle
+        Save settings 0
+
+        Usage:
+        :ROUTe[:CHANnel]:DELay <delay>, (@<channelList>)
+        :ROUTe[:CHANnel]:DELay? (@<channelList>)
+        <channelList> The channels to set, using standard channel naming (on page 12-4)
+        <delay> Delay time for the selected channels; minimum is 0 seconds
+        Details
+        After a channel closes, a command incurs the delay time indicated in the response for a channel
+        before it completes. However, the internal settling time must elapse before the user delay is incurred.
+        Therefore, the sequence is:
+        1. Command is processed
+        2. Channel closes
+        3. Settling time is incurred
+        4. Channel delay is incurred
+        5. Command completes
+        The channel delay is an additional delay that is added after a channel is closed. You can use this
+        delay to allow additional settling time for a signal on that channel. For most cards, the resolution of
+        the delay is 10 μs. However, check the documentation for your card to verify. To see if the delay
+        value was modified after setting, query the value.
+        Setting a delay only applies to switch channels.
+        The delay being specified may be updated based on the delay resolution of the card.
+        The delay times are returned in a comma-delimited list in the same order that the channels are
+        specified in the channel list parameter. A value of zero (0) indicates that no additional delay time is
+        incurred before a close command completes.
+        Pseudocards do not support user delays, so this value is always zero (0) if a pseudocard is used.
+        The query returns the delays for the selected channels.
+        Example
+        ROUT:DEL 0.1, (@slot1)
+        ROUT:DEL? (@slot1)
+        Set a delay of 0.1 s for all channels in slot 1.
+        Query the delay value for that slot. An example return:
+        0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.
+        1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0,0,0,0
+        :param channels: A list ot tuple withy the channels delay to be changed
+        :param delay: A float with the delay to apply
+        :return: None
+        """
+        self.channels_delay = delay, channels
+
+    def channels_get_delay_at_slot1(self):
+        """
+        Method that returns a list with the information of the delay applied in the channels at slot 1
+        :return: A list with the delay in all the channels at slot1
+        """
+        return self.channels_get_delay_at_slot1
+
+    def channels_get_delay_at_slot2(self):
+        """
+        Method that returns a list with the information of the delay applied in the channels at slot 1
+        :return: A list with the delay in all the channels at slot1
+        """
+        return self.channels_get_delay_at_slot2
 
     # TODO: :ROUTe[:CHANnel]:LABel
 
@@ -629,7 +697,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
 
     # TODO: Test channels_read(self, channels, bufferName='defbuffer1')
 
-    def channels_read(self, channels, bufferName='defbuffer1'):
+    def channels_read(self, channels, bufferName="'defbuffer1'"):
         """
         This command reads a value from a totalizer, DAC, or digital I/O channel.
         Details
@@ -643,48 +711,10 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         """
 
         clist = clist_validator(channels, self.CHANNELSLIST_VALUES)
-        # print(":ROUTe:CHANnel:READ? %s, %s" % clist % bufferName + '\n')
-        channels_readings = self.ask(":ROUTe:CHANnel:READ? %s, %s" % clist % bufferName + '\n')
+        print(":ROUTe:CHANnel:READ? %s, %s" % (clist, bufferName) + '\n')
+        channels_readings = self.ask(":ROUTe:CHANnel:READ? %s, %s" % (clist, bufferName) + "\n")
         # print(channels_readings)
         return channels_readings
-
-    # TODO: Test channels_get_state(self, channels)
-
-    def channels_get_state(self, channels):
-        """
-        This command returns the state indicators of the channels in the instrument.
-        Details
-        This command returns the overload, match, closed, or open state of a channel. The states that can
-        be returned depend on the type of channel.
-        All channels can report an open or closed channel.
-        Totalizer and digital I/O channels can report that a value has been matched.
-        Totalizer channels can also report that the count has overflowed, which means the last value read
-        was less than the previous value read. This occurs when the totalizer reaches 4,294,967,295 and
-        automatically resets to zero between reads.
-        Cards are returned sequentially by channel number.
-        Each bit in the return represents a different indicator. Therefore, multiple indicators can be present
-        (the OR operation is performed bitwise).
-        Possible returns are:
-        • 0: Channel is open
-        • 1: Channel is closed
-        • 4: Digital I/O or totalizer channel value is matched
-        • 8: Totalizer channel has overflowed
-        Example
-        :ROUT:CLOS (@105)
-        :ROUT:STAT? (@101:120)
-        Close channel 5 on slot 1.
-        Query the state of the first 20 channels on slot 1.
-        Output (assuming a 7706):
-        0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        Also see
-        :ROUTe[:CHANnel]:MATCh (on page 13-53)
-        """
-
-        clist = clist_validator(channels, self.CHANNELSLIST_VALUES)
-        # print(":ROUTe:CHANnel:STATe? %s " % clist + '\n')
-        channels_state = self.ask(":ROUTe:CHANnel:STATe? %s " % clist + '\n')
-        # print(channels_state)
-        return channels_state
 
     # :ROUTe[:CHANnel]:MULTiple:CLOSe
     # This command closes the listed channels without affecting any other channels.
@@ -752,9 +782,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         check_set_errors=True
     )
 
-    # TODO: TEST channels_get_type
-
-    def channels_get_type(self, channels):
+    def channels_get_type(self, channels): #ok
         """
         This command returns the type associated with a channel.
             following are valid channel types:
@@ -778,12 +806,12 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         clist = clist_validator(channels,self.CHANNELSLIST_VALUES)
         # print(":ROUTe:CHANnel:TYPE? %s" % clist + '\n')
         channels_types = self.ask(":ROUTe:CHANnel:TYPE? %s" % clist + '\n')
+        channels_types = channels_types[:-1]
+        channels_types = channels_types.split(",")
         # print(channels_types)
         return channels_types
 
-    #TODO: TEST channels_get_count
-
-    def channels_get_count(self,channels):
+    def channels_get_count(self,channels): #ok
         """
         This method returns the number of times the relays have been closed for the specified channels.
         Usage
@@ -814,26 +842,71 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
         Also see
         :ROUTe[:CHANnel]:CLOSe:COUNt:INTerval (on page 13-48)
         :param channels: A list or tuple of channels to get the count
-        :return the channels_counts
+        :return the channels_counts as a list of ints
         """
 
         clist = clist_validator(channels,self.CHANNELSLIST_VALUES)
         # print(":ROUTe:CHANnel:CLOSe:COUNt? %s" % clist + '\n')
-        channels_counts = self.ask(":ROUTe[:CHANnel]:CLOSe:COUNt? %s" % clist + '\n')
+        channels_counts = self.ask(":ROUTe:CHANnel:CLOSe:COUNt? %s" % clist + '\n')
         # print(channels_counts)
+        channels_counts = channels_counts[:-1]
+        channels_counts = channels_counts.split(",")
+        channels_counts = list(map(int,channels_counts))
+
         return channels_counts
 
-    def channels_get_state_of(self, channels):  # ok
-        """ Get the open or closed state of the specified channels
+    def channels_get_state_of(self, channels, translate=True):  # ok
+        """ This command returns the state indicators of the channels in the instrument.
+        Details
+        This command returns the overload, match, closed, or open state of a channel. The states that can
+        be returned depend on the type of channel.
+        All channels can report an open or closed channel.
+        Totalizer and digital I/O channels can report that a value has been matched.
+        Totalizer channels can also report that the count has overflowed, which means the last value read
+        was less than the previous value read. This occurs when the totalizer reaches 4,294,967,295 and
+        automatically resets to zero between reads.
+        Cards are returned sequentially by channel number.
+        Each bit in the return represents a different indicator. Therefore, multiple indicators can be present
+        (the OR operation is performed bitwise).
+        Possible returns are:
+        • 0: Channel is open
+        • 1: Channel is closed
+        • 4: Digital I/O or totalizer channel value is matched
+        • 8: Totalizer channel has overflowed
+        Example
+        :ROUT:CLOS (@105)
+        :ROUT:STAT? (@101:120)
+        Close channel 5 on slot 1.
+        Query the state of the first 20 channels on slot 1.
+        Output (assuming a 7706):
+        0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        Also see
+        :ROUTe[:CHANnel]:MATCh (on page 13-53)
 
-        :param channels: A list or tuple of channels to get the state
-        :return the channels_states
+        :param channels: A list or tuple of channels to get the count
+        :param translate: A boolean that if is true it will translate a list of indicators as ints to a list os indicators more descriptive
+        :return: A list of indicators
         """
         clist = clist_validator(channels, self.CHANNELSLIST_VALUES)
-        # print("ROUTe:MULTiple:STATe? %s" % clist + '\n')
-        state = self.ask("ROUTe:STATe? %s" % clist + '\n')
-        # print(state)
-        return state
+        # print("ROUTe:CHANnel:STATe? %s" % clist + '\n')
+        channels_state = self.ask("ROUTe:CHANnel:STATe? %s" % clist + '\n')
+        channels_state = channels_state[:-1]
+        channels_state = channels_state.split(",")
+        channels_state = list(map(int,channels_state))
+
+        if translate:
+            for index, channel_state in enumerate(channels_state):
+                if channel_state == 0:
+                    channels_state[index] = 'Open'
+                elif channel_state == 1:
+                    channels_state[index] = 'Closed'
+                elif channel_state == 4:
+                    channels_state[index] = 'Digital I/O or totalizer channel value is matched'
+                else:
+                    channels_state[index] = 'Totalizer channel has overflowed '
+
+        # print(channels_state)
+        return channels_state
 
     def channels_open_all(self):  # ok
         """ Open all channels of the Keithley DAQ6510.
@@ -1390,7 +1463,7 @@ class KeithleyDAQ6510(Instrument, KeithleyBuffer):
                 #   AC-DC Current(21 & 22) channels and three additional switches (23, 24, 25)   
                 #   that allow row 1 and 2 to be connected to the DMM backplane (input and sense respectively).
                 #   """
-                channels = range(1, 23)
+                channels = range(1, 26)
             else:
                 log.warning("Card type %s at slot %s is not yet implemented." % (card, slotNumber))
 
