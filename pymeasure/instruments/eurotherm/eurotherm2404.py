@@ -22,6 +22,7 @@
 # THE SOFTWARE.
 #
 import logging
+import time
 
 from pymeasure.instruments import Instrument
 from enum import IntEnum
@@ -45,21 +46,69 @@ class Eurotherm2404(Instrument):
     """
     byteMode = 4
 
-    def __init__(self, adapter, name="TC038D", address=1, timeout=1000,
+    # MODBUS ADDRESSES
+    TEMP_ADDR = 1;
+    SET_TEMPERATURE_SETPOINT1_ADDR = 2;
+    READ_TEMPERATURE_SETPOINT1_ADDR = 24;
+    READ_TEMPERATURE_SETPOINT2_ADDR = 25;
+    OUTPUTPOWER_ADDR = 3;
+    MODE_ADDR = 273;
+    USER_CALIBRATION_ENABLE_ADDR = 110;
+
+    # OVEN RATINGS
+    MAX_TEMP = 500;
+    MIN_TEMP = 0;
+    MIN_OUTPUTPOWER = 0;
+    MAX_OUTPUTPOWER = 100;
+
+    # OVEN WORKING MODES
+    MANUAL_MODE = 1;
+    AUTO_MODE = 0;
+
+    # OVEN CALIBRATION OPTIONS
+    FACTORY_CALIBRATION = 0;
+    USER_CALIBRATION = 0;
+
+    def __init__(self, adapter,
+                 name="Eurotherm2404",
+                 address=1,
+                 timeout=1000,
+                 read_delay=0.1,
+                 write_delay=0.1,
+                 query_delay=0.1,
                  **kwargs):
         """Initialize the device."""
-        super().__init__(adapter, name, timeout=timeout, **kwargs)
+        super().__init__(
+            adapter,
+            name,
+            write_termination="\n",
+            read_termination="",
+            send_end=True,
+            includeSCPI=True,
+            timeout=timeout,
+            **kwargs
+        )
         self.address = address
+        self.write_delay = write_delay
+        self.read_delay = read_delay
+        self.query_delay = query_delay
+        self.last_write_timestamp = 0.0
+        self.last_read_timestamp = 0.0
+        self.last_query_timestamp = 0.0
 
     def write(self, command, **kwargs):
-        """Write a command to the device.
-
+        """Overrides Instrument write method for including write_delay time after the parent call
+        and write a command to the device.
         :param str command: comma separated string of:
             - the function: read ('R') or write ('W') or 'echo',
             - the address to write to (e.g. '0x106' or '262'),
             - the values (comma separated) to write
             - or the number of elements to read (defaults to 1).
         """
+
+        actual_write_delay = time.time() - self.last_write_timestamp
+        time.sleep(max(0, self.write_delay - actual_write_delay))
+
         function, address, *values = command.split(",")
         function = Functions[function]
         data = [self.address, function]  # 1B device address
@@ -81,8 +130,14 @@ class Eurotherm2404(Instrument):
         data += CRC16(data)
         self.write_bytes(bytes(data))
 
+        self.last_write_timestamp = time.time()
+
     def read(self, **kwargs):
         """Read response and interpret the number, returning it as a string."""
+
+        actual_read_delay = time.time() - self.last_read_timestamp
+        time.sleep(max(0, self.read_delay - actual_read_delay))
+
         # Slave address, function
         got = self.read_bytes(2)
         if got[1] == Functions.R:
@@ -115,6 +170,17 @@ class Eurotherm2404(Instrument):
             else:
                 raise ConnectionError(f"Unknown read error. Received: {got} {end}")
 
+        self.last_read_timestamp = time.time()
+
+    def ask(self, command, query_delay=0):
+        """ Overrides Instrument ask method for including query_delay time on parent call.
+        :param command: Command string to be sent to the instrument.
+        :param query_delay: Delay between writing and reading in seconds.
+        :returns: String returned by the device without read_termination.
+        """
+
+        return super().ask(command, query_delay if query_delay else self.query_delay)
+
     def check_set_errors(self):
         """Check for errors after having set a property.
 
@@ -132,16 +198,17 @@ class Eurotherm2404(Instrument):
         """Test the connection sending an integer up to 65535, checks the response."""
         assert int(self.ask(f"ECHO,0,{test_data}")) == test_data
 
-    setpoint = Instrument.control(
-        "R,0x106", "W,0x106,%i",
-        """Control the setpoint of the oven in °C.""",
+    temperature_setpoint1 = Instrument.control(
+        "R," + str(READ_TEMPERATURE_SETPOINT1_ADDR),
+        "W," + str(SET_TEMPERATURE_SETPOINT1_ADDR) + ",%i",
+        """Control the setpoint1 of the oven in °C.""",
         check_set_errors=True,
         get_process=lambda v: v / 10,
         set_process=lambda v: int(round(v * 10)),
     )
 
     temperature = Instrument.measurement(
-        "R,0x0",
+        "R," + str(TEMP_ADDR),
         """Measure the current oven temperature in °C.""",
         get_process=lambda v: v / 10,
     )
