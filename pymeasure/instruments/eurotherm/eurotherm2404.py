@@ -69,7 +69,8 @@ class Eurotherm2404(Instrument):
     FACTORY_CALIBRATION = 0;
     USER_CALIBRATION = 0;
 
-    def __init__(self, adapter,
+    def __init__(self,
+                 adapter,
                  name="Eurotherm2404",
                  address=1,
                  timeout=1000,
@@ -228,7 +229,7 @@ def CRC16(data):
 
 
 class Functions(IntEnum):
-    R = 0x03
-    WRITESINGLE = 0x06
+    R = 0x03  # Read holding registers
+    WRITESINGLE = 0x06  # Write single register
     ECHO = 0x08  # register address has to be 0
-    W = 0x10  # writing multiple variables
+    W = 0x10  # Write multiple registers
