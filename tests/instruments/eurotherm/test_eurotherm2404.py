@@ -1,6 +1,3 @@
-#
-# This file is part of the PyMeasure package.
-#
 # Copyright (c) 2013-2023 PyMeasure Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,4 +19,14 @@
 # THE SOFTWARE.
 #
 
-# from .eurotherm2404 import Eurotherm2404
+from pymeasure.test import expected_protocol
+from pymeasure.instruments.eurotherm.eurotherm2404 import Eurotherm2404
+
+
+def test_selected_setpoint():
+    """Verify the communication of the selected setpoint."""
+    with expected_protocol(
+            Eurotherm2404,
+            [(b"\x01\x10\x00\x0f\x00\x01\x00\x01\x14\x0c", None)],
+    ) as inst:
+        inst.selected_setpoint = 1

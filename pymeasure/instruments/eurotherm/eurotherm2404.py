@@ -49,28 +49,34 @@ class Eurotherm2404(Instrument):
     byteMode = 2  # is the length in bytes of the register (normally holding registers RTU 2 bytes)
 
     # MODBUS ADDRESSES
-    TEMP_ADDR = 1;
-    TARGET_TEMPERATURE_SETPOINT_ADDR = 2;
-    SELECT_TEMPERAURE_SETPOINT_ADRR = 15
-    TEMPERATURE_SETPOINT1_ADDR = 24;
-    TEMPERATURE_SETPOINT2_ADDR = 25;
-    OUTPUTPOWER_ADDR = 3;
-    MODE_ADDR = 273;
-    USER_CALIBRATION_ENABLE_ADDR = 110;
+    PROCESS_TEMP_ADDR = 0x01
+    SELECTED_SETPOINT_VALUE_ADDR = 0x02
+    SELECT_SETPOINT_ADRR = 0x0f  # 15
+    CURRENTLY_SELECTED_SETPOINT_ADRR = 0x0123  # 291
+    SETPOINT1_VALUE_ADDR = 0x18  # 24
+    SETPOINT2_VALUE_ADDR = 0x19  # 25
+    OUTPUTPOWER_ADDR = 0x03
+    MODE_ADDR = 0x0111  # 273
+    USER_CALIBRATION_ENABLE_ADDR = 0x6e  # 110
+    RESOLUTION_ADDR = 0x3106  # 12550
 
     # OVEN RATINGS
-    MAX_TEMP = 500;
-    MIN_TEMP = 0;
-    MIN_OUTPUTPOWER = 0;
-    MAX_OUTPUTPOWER = 100;
+    MAX_TEMP = 500
+    MIN_TEMP = 0
+    MIN_OUTPUTPOWER = 0
+    MAX_OUTPUTPOWER = 100
 
     # OVEN WORKING MODES
-    MANUAL_MODE = 1;
-    AUTO_MODE = 0;
+    MANUAL_MODE = 1
+    AUTO_MODE = 0
+
+    # RESOLUTION MODES
+    FULL_RESOLUTION = 0
+    INTEGER_RESOLUTION = 1
 
     # OVEN CALIBRATION OPTIONS
-    FACTORY_CALIBRATION = 0;
-    USER_CALIBRATION = 0;
+    FACTORY_CALIBRATION = 0
+    USER_CALIBRATION = 0
 
     # CONTROLLER CHARACTERISTICS
     NUMBER_OF_SETPOINTS_AVAILABLE = 2
@@ -88,7 +94,7 @@ class Eurotherm2404(Instrument):
         super().__init__(
             adapter,
             name,
-            write_termination="\n",
+            write_termination="",
             read_termination="",
             send_end=True,
             includeSCPI=True,
@@ -103,8 +109,9 @@ class Eurotherm2404(Instrument):
         self.last_read_timestamp = 0.0
         self.last_query_timestamp = 0.0
 
-    temperature_setpoint_selection = Instrument.setting(
-        "W," + str(SELECT_TEMPERAURE_SETPOINT_ADRR) + ",%i",
+    selected_setpoint = Instrument.control(
+        "R," + str(CURRENTLY_SELECTED_SETPOINT_ADRR),
+        "W," + str(SELECT_SETPOINT_ADRR) + ",%i",
         """Control the selection of the temperature setpoint for the temperature controller.
         Usually, in standard controllers, only two setpoints are available.
         0 corresponds to SP1 and 1 corresponds to SP2 """,
@@ -112,29 +119,30 @@ class Eurotherm2404(Instrument):
         values=[n for n in range(0, NUMBER_OF_SETPOINTS_AVAILABLE)]
     )
 
-    temperature_setpoint = Instrument.setting(
-        "W," + str(TARGET_TEMPERATURE_SETPOINT_ADDR) + ",%i",
+    selected_setpoint_value = Instrument.setting(
+        "W," + str(SELECTED_SETPOINT_VALUE_ADDR) + ",%i",
         """Control the selected setpoint of the oven in °C."""
     )
 
-    temperature_setpoint1 = Instrument.measurement(
-        "R," + str(TEMPERATURE_SETPOINT1_ADDR),
+    setpoint1_value = Instrument.measurement(
+        "R," + str(SETPOINT1_VALUE_ADDR),
         """Measure the setpoint1 of the oven in °C."""
     )
 
-    temperature_setpoint2 = Instrument.measurement(
-        "R," + str(TEMPERATURE_SETPOINT2_ADDR),
+    setpoint2_value = Instrument.measurement(
+        "R," + str(SETPOINT2_VALUE_ADDR),
         """Measure the setpoint2 of the oven in °C."""
     )
 
     process_temperature = Instrument.measurement(
-        "R," + str(TEMP_ADDR),
+        "R," + str(PROCESS_TEMP_ADDR),
         """Measure the current oven temperature in °C."""
     )
 
     automode_enabled = Instrument.setting(
-        "W," + str(AUTO_MODE) + ",%i",
+        "W," + str(MODE_ADDR) + ",%i",
         """Control the working mode of the temperature controller.""",
+        validator=strict_discrete_set,
         map_values=True,
         values={True: AUTO_MODE, False: MANUAL_MODE}
     )
@@ -142,6 +150,14 @@ class Eurotherm2404(Instrument):
     output_power = Instrument.measurement(
         "R," + str(OUTPUTPOWER_ADDR),
         """Measure the current oven output power in %."""
+    )
+
+    resolution = Instrument.setting(
+        "W," + str(RESOLUTION_ADDR),
+        """Control the working mode of the temperature controller.""",
+        validator=strict_discrete_set,
+        map_values=True,
+        values={'full': FULL_RESOLUTION, 'integer': INTEGER_RESOLUTION}
     )
 
     def write(self, command, **kwargs):
