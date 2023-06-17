@@ -27,6 +27,8 @@ import time
 from pymeasure.instruments import Instrument
 from enum import IntEnum
 
+from pymeasure.instruments.validators import strict_discrete_set
+
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
@@ -44,13 +46,14 @@ class Eurotherm2404(Instrument):
 
         print(eurotherm2404.id)
     """
-    byteMode = 4
+    byteMode = 2  # is the length in bytes of the register (normally holding registers RTU 2 bytes)
 
     # MODBUS ADDRESSES
     TEMP_ADDR = 1;
-    SET_TEMPERATURE_SETPOINT1_ADDR = 2;
-    READ_TEMPERATURE_SETPOINT1_ADDR = 24;
-    READ_TEMPERATURE_SETPOINT2_ADDR = 25;
+    TARGET_TEMPERATURE_SETPOINT_ADDR = 2;
+    SELECT_TEMPERAURE_SETPOINT_ADRR = 15
+    TEMPERATURE_SETPOINT1_ADDR = 24;
+    TEMPERATURE_SETPOINT2_ADDR = 25;
     OUTPUTPOWER_ADDR = 3;
     MODE_ADDR = 273;
     USER_CALIBRATION_ENABLE_ADDR = 110;
@@ -68,6 +71,9 @@ class Eurotherm2404(Instrument):
     # OVEN CALIBRATION OPTIONS
     FACTORY_CALIBRATION = 0;
     USER_CALIBRATION = 0;
+
+    # CONTROLLER CHARACTERISTICS
+    NUMBER_OF_SETPOINTS_AVAILABLE = 2
 
     def __init__(self,
                  adapter,
@@ -96,6 +102,47 @@ class Eurotherm2404(Instrument):
         self.last_write_timestamp = 0.0
         self.last_read_timestamp = 0.0
         self.last_query_timestamp = 0.0
+
+    temperature_setpoint_selection = Instrument.setting(
+        "W," + str(SELECT_TEMPERAURE_SETPOINT_ADRR) + ",%i",
+        """Control the selection of the temperature setpoint for the temperature controller.
+        Usually, in standard controllers, only two setpoints are available.
+        0 corresponds to SP1 and 1 corresponds to SP2 """,
+        validator=strict_discrete_set,
+        values=[n for n in range(0, NUMBER_OF_SETPOINTS_AVAILABLE)]
+    )
+
+    temperature_setpoint = Instrument.setting(
+        "W," + str(TARGET_TEMPERATURE_SETPOINT_ADDR) + ",%i",
+        """Control the selected setpoint of the oven in °C."""
+    )
+
+    temperature_setpoint1 = Instrument.measurement(
+        "R," + str(TEMPERATURE_SETPOINT1_ADDR),
+        """Measure the setpoint1 of the oven in °C."""
+    )
+
+    temperature_setpoint2 = Instrument.measurement(
+        "R," + str(TEMPERATURE_SETPOINT2_ADDR),
+        """Measure the setpoint2 of the oven in °C."""
+    )
+
+    process_temperature = Instrument.measurement(
+        "R," + str(TEMP_ADDR),
+        """Measure the current oven temperature in °C."""
+    )
+
+    automode_enabled = Instrument.setting(
+        "W," + str(AUTO_MODE) + ",%i",
+        """Control the working mode of the temperature controller.""",
+        map_values=True,
+        values={True: AUTO_MODE, False: MANUAL_MODE}
+    )
+
+    output_power = Instrument.measurement(
+        "R," + str(OUTPUTPOWER_ADDR),
+        """Measure the current oven output power in %."""
+    )
 
     def write(self, command, **kwargs):
         """Overrides Instrument write method for including write_delay time after the parent call
@@ -198,21 +245,6 @@ class Eurotherm2404(Instrument):
     def ping(self, test_data=0):
         """Test the connection sending an integer up to 65535, checks the response."""
         assert int(self.ask(f"ECHO,0,{test_data}")) == test_data
-
-    temperature_setpoint1 = Instrument.control(
-        "R," + str(READ_TEMPERATURE_SETPOINT1_ADDR),
-        "W," + str(SET_TEMPERATURE_SETPOINT1_ADDR) + ",%i",
-        """Control the setpoint1 of the oven in °C.""",
-        check_set_errors=True,
-        get_process=lambda v: v / 10,
-        set_process=lambda v: int(round(v * 10)),
-    )
-
-    temperature = Instrument.measurement(
-        "R," + str(TEMP_ADDR),
-        """Measure the current oven temperature in °C.""",
-        get_process=lambda v: v / 10,
-    )
 
 
 def CRC16(data):
