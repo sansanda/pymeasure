@@ -86,9 +86,9 @@ class Eurotherm2404(Instrument):
                  name="Eurotherm2404",
                  address=1,
                  timeout=1000,
-                 read_delay=0.1,
-                 write_delay=0.1,
-                 query_delay=0.1,
+                 read_delay=0.5,
+                 write_delay=0.5,
+                 query_delay=0.5,
                  **kwargs):
         """Initialize the device."""
         super().__init__(
@@ -119,7 +119,7 @@ class Eurotherm2404(Instrument):
         values=[n for n in range(0, NUMBER_OF_SETPOINTS_AVAILABLE)]
     )
 
-    selected_setpoint_value = Instrument.setting(
+    selected_setpoint_target = Instrument.setting(
         "W," + str(SELECTED_SETPOINT_VALUE_ADDR) + ",%i",
         """Control the selected setpoint of the oven in °C."""
     )
@@ -134,7 +134,7 @@ class Eurotherm2404(Instrument):
         """Measure the setpoint2 of the oven in °C."""
     )
 
-    process_temperature = Instrument.measurement(
+    process_temperature_value = Instrument.measurement(
         "R," + str(PROCESS_TEMP_ADDR),
         """Measure the current oven temperature in °C."""
     )
@@ -249,6 +249,19 @@ class Eurotherm2404(Instrument):
         """Check for errors after having set a property.
 
         Called if :code:`check_set_errors=True` is set for that property.
+        """
+        try:
+            self.read()
+        except Exception as exc:
+            log.exception("Setting a property failed.", exc_info=exc)
+            raise
+        else:
+            return []
+
+    def check_get_errors(self):
+        """Check for errors after having get a property.
+
+        Called if :code:`check_get_errors=True` is set for that property.
         """
         try:
             self.read()
