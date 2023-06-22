@@ -52,7 +52,8 @@ class Eurotherm2404(Instrument):
     PROCESS_TEMP_ADDR = 0x01
     SELECTED_SETPOINT_VALUE_ADDR = 0x02
     SELECT_SETPOINT_ADRR = 0x0f  # 15
-    CURRENTLY_SELECTED_SETPOINT_ADRR = 0x0123  # 291
+    WORKING_SETPOINT_ADRR = 0X05
+    CHANGE_SETPOINT_ADRR = 0x0123  # 291
     SETPOINT1_VALUE_ADDR = 0x18  # 24
     SETPOINT2_VALUE_ADDR = 0x19  # 25
     OUTPUTPOWER_ADDR = 0x03
@@ -109,19 +110,22 @@ class Eurotherm2404(Instrument):
         self.last_read_timestamp = 0.0
         self.last_query_timestamp = 0.0
 
-    selected_setpoint = Instrument.control(
-        "R," + str(CURRENTLY_SELECTED_SETPOINT_ADRR),
-        "W," + str(SELECT_SETPOINT_ADRR) + ",%i",
+    working_setpoint = Instrument.control(
+        "R," + str(WORKING_SETPOINT_ADRR),
+        "W," + str(CHANGE_SETPOINT_ADRR) + ",%i",
         """Control the selection of the temperature setpoint for the temperature controller.
         Usually, in standard controllers, only two setpoints are available.
         0 corresponds to SP1 and 1 corresponds to SP2 """,
         validator=strict_discrete_set,
-        values=[n for n in range(0, NUMBER_OF_SETPOINTS_AVAILABLE)]
+        values=[n for n in range(0, NUMBER_OF_SETPOINTS_AVAILABLE)],
+        check_set_errors=True,
+        cast=int
     )
 
     selected_setpoint_target = Instrument.setting(
         "W," + str(SELECTED_SETPOINT_VALUE_ADDR) + ",%i",
-        """Control the selected setpoint of the oven in °C."""
+        """Control the selected setpoint of the oven in °C.""",
+        check_set_errors=True
     )
 
     setpoint1_value = Instrument.measurement(
@@ -144,7 +148,8 @@ class Eurotherm2404(Instrument):
         """Control the working mode of the temperature controller.""",
         validator=strict_discrete_set,
         map_values=True,
-        values={True: AUTO_MODE, False: MANUAL_MODE}
+        values={True: AUTO_MODE, False: MANUAL_MODE},
+        check_set_errors=True
     )
 
     output_power = Instrument.measurement(
@@ -153,11 +158,12 @@ class Eurotherm2404(Instrument):
     )
 
     resolution = Instrument.setting(
-        "W," + str(RESOLUTION_ADDR),
+        "W," + str(RESOLUTION_ADDR) + ",%s",
         """Control the working mode of the temperature controller.""",
         validator=strict_discrete_set,
         map_values=True,
-        values={'full': FULL_RESOLUTION, 'integer': INTEGER_RESOLUTION}
+        values={'full': FULL_RESOLUTION, 'integer': INTEGER_RESOLUTION},
+        check_set_errors=True
     )
 
     def write(self, command, **kwargs):
@@ -192,6 +198,7 @@ class Eurotherm2404(Instrument):
             if values:
                 data.extend(int(values[0]).to_bytes(2, "big"))  # 2B test data
         data += CRC16(data)
+        log.debug("wroten: ", bytes(data))
         self.write_bytes(bytes(data))
 
         self.last_write_timestamp = time.time()
@@ -211,6 +218,7 @@ class Eurotherm2404(Instrument):
             read = self.read_bytes(length[0] + 2)
             if read[-2:] != bytes(CRC16(got + length + read[:-2])):
                 raise ConnectionError("Response CRC does not match.")
+            log.debug("readed:", got, length, read[:-2])
             return str(int.from_bytes(read[:-2], byteorder="big", signed=True))
         elif got[1] == Functions.W:
             # start address, number elements, CRC; each 2 Bytes long
@@ -251,7 +259,8 @@ class Eurotherm2404(Instrument):
         Called if :code:`check_set_errors=True` is set for that property.
         """
         try:
-            self.read()
+            r = self.read()
+            log.debug("Readed on check_set_errors: ", r)
         except Exception as exc:
             log.exception("Setting a property failed.", exc_info=exc)
             raise
@@ -264,7 +273,8 @@ class Eurotherm2404(Instrument):
         Called if :code:`check_get_errors=True` is set for that property.
         """
         try:
-            self.read()
+            r = self.read()
+            log.debug("Readed on check_get_errors: ", r)
         except Exception as exc:
             log.exception("Setting a property failed.", exc_info=exc)
             raise
