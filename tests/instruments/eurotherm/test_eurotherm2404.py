@@ -21,12 +21,38 @@
 
 from pymeasure.test import expected_protocol
 from pymeasure.instruments.eurotherm.eurotherm2404 import Eurotherm2404
+from pymeasure.instruments.eurotherm.eurotherm2404 import CRC16
 
 
-def test_selected_setpoint():
-    """Verify the communication of the selected setpoint."""
+def test_working_setpoint():
+    """Verify the communication of the working setpoint."""
     with expected_protocol(
             Eurotherm2404,
-            [(b"\x01\x10\x00\x0f\x00\x01\x00\x01\x14\x0c", None)],
+            [(bytes([1, 16, 1, 35, 0, 1, 2, 0, 1] + CRC16([1, 16, 1, 35, 0, 1, 2, 0, 1])),
+              bytes([1, 16, 1, 35, 0, 1] + CRC16([1, 16, 1, 35, 0, 1]))),
+             (bytes([1, 3, 0, 5, 0, 1] + CRC16([1, 3, 0, 5, 0, 1])),
+              bytes([1, 3, 2, 0, 1] + CRC16([1, 3, 2, 0, 1])))
+             ],
     ) as inst:
-        inst.selected_setpoint = 1
+        inst.working_setpoint = 1
+        assert inst.working_setpoint == 1
+
+
+def test_resolution():
+    """Verify the communication of the resolution."""
+    with expected_protocol(
+            Eurotherm2404,
+            [(bytes([1, 16, 49, 6, 0, 1, 2, 0, 0] + CRC16([1, 16, 49, 6, 0, 1, 2, 0, 0])),
+              bytes([1, 16, 49, 6, 0, 1] + CRC16([1, 16, 49, 6, 0, 1])))],
+    ) as inst:
+        inst.resolution = "full"
+
+
+def test_automode_enabled():
+    """Verify the communication of the automode enabled."""
+    with expected_protocol(
+            Eurotherm2404,
+            [(bytes([1, 16, 1, 17, 0, 1, 2, 0, 0] + CRC16([1, 16, 1, 17, 0, 1, 2, 0, 0])),
+              bytes([1, 16, 1, 17, 0, 1] + CRC16([1, 16, 1, 17, 0, 1])))],
+    ) as inst:
+        inst.automode_enabled = True

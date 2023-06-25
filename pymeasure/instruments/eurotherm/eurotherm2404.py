@@ -22,6 +22,7 @@
 # THE SOFTWARE.
 #
 import logging
+import sys
 import time
 
 from pymeasure.instruments import Instrument
@@ -29,8 +30,23 @@ from enum import IntEnum
 
 from pymeasure.instruments.validators import strict_discrete_set
 
+# create logger
+log_level = logging.DEBUG
 log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
+log.setLevel(log_level)
+
+# create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(log_level)
+
+# create formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# add formatter to ch
+ch.setFormatter(formatter)
+
+# add ch to logger
+log.addHandler(ch)
 
 
 class Eurotherm2404(Instrument):
@@ -40,11 +56,19 @@ class Eurotherm2404(Instrument):
 
     .. code-block:: python
 
-        eurotherm2404 = Eurotherm2404('ASRL5::INSTR',
-        baud_rate=9600, data_bits=8, write_termination = '\n',read_termination='\n',
-        parity=Parity.none)
-
-        print(eurotherm2404.id)
+        e2404 = Eurotherm2404('ASRL3::INSTR')
+        e2404.working_setpoint = 1
+        e2404.resolution = "full"
+        e2404.automode_enabled = True
+        e2404.working_setpoint = 1
+        e2404.selected_setpoint_target = 75
+        e2404.automode_enabled = True
+        while True:
+            print("Working setpoint: ", e2404.working_setpoint)
+            print("Temperature setpoint1 value: ", e2404.setpoint1_value)
+            print("Process temperature: ", e2404.process_temperature_value)
+            print("Output power: ", e2404.output_power)
+            time.sleep(1)
     """
     byteMode = 2  # is the length in bytes of the register (normally holding registers RTU 2 bytes)
 
@@ -185,20 +209,23 @@ class Eurotherm2404(Instrument):
         address = int(address, 16) if "x" in address else int(address)
         data.extend(address.to_bytes(2, "big"))  # 2B register address
         if function == Functions.W:
+            log.info("Sending command: %s", Functions.WRITESINGLE)
             elements = len(values) * self.byteMode // 2
             data.extend(elements.to_bytes(2, "big"))  # 2B number of elements
             data.append(elements * 2)  # 1B number of bytes to write
             for element in values:
                 data.extend(int(element).to_bytes(self.byteMode, "big", signed=True))
         elif function == Functions.R:
+            log.info("Sending command: %s", "Read holding registers")
             count = int(values[0]) * self.byteMode // 2 if values else self.byteMode // 2
             data.extend(count.to_bytes(2, "big"))  # 2B number of elements to read
         elif function == Functions.ECHO:
+            log.info("Sending command: %s", "ECHO")
             data[-2:] = [0, 0]
             if values:
                 data.extend(int(values[0]).to_bytes(2, "big"))  # 2B test data
         data += CRC16(data)
-        log.debug("wroten: ", bytes(data))
+        log.debug("Wroten bytes: %s", bytes(data))
         self.write_bytes(bytes(data))
 
         self.last_write_timestamp = time.time()
@@ -218,7 +245,7 @@ class Eurotherm2404(Instrument):
             read = self.read_bytes(length[0] + 2)
             if read[-2:] != bytes(CRC16(got + length + read[:-2])):
                 raise ConnectionError("Response CRC does not match.")
-            log.debug("readed:", got, length, read[:-2])
+            log.debug("Readed bytes: %s", got + length + read)
             return str(int.from_bytes(read[:-2], byteorder="big", signed=True))
         elif got[1] == Functions.W:
             # start address, number elements, CRC; each 2 Bytes long
@@ -260,7 +287,7 @@ class Eurotherm2404(Instrument):
         """
         try:
             r = self.read()
-            log.debug("Readed on check_set_errors: ", r)
+            log.debug("Readed bytes on check_set_errors: %s", r)
         except Exception as exc:
             log.exception("Setting a property failed.", exc_info=exc)
             raise
@@ -274,7 +301,7 @@ class Eurotherm2404(Instrument):
         """
         try:
             r = self.read()
-            log.debug("Readed on check_get_errors: ", r)
+            log.debug("Readed bytes on check_get_errors: ", r)
         except Exception as exc:
             log.exception("Setting a property failed.", exc_info=exc)
             raise
