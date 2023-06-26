@@ -140,14 +140,12 @@ class Eurotherm2404(Instrument):
         0 corresponds to SP1 and 1 corresponds to SP2 """,
         validator=strict_discrete_set,
         values=[n for n in range(0, NUMBER_OF_SETPOINTS_AVAILABLE)],
-        check_set_errors=True,
         cast=int
     )
 
     selected_setpoint_target = Instrument.setting(
         "W," + str(SELECTED_SETPOINT_VALUE_ADDR) + ",%i",
-        """Control the selected setpoint of the oven in °C.""",
-        check_set_errors=True
+        """Control the selected setpoint of the oven in °C."""
     )
 
     setpoint1_value = Instrument.measurement(
@@ -170,8 +168,7 @@ class Eurotherm2404(Instrument):
         """Control the working mode of the temperature controller.""",
         validator=strict_discrete_set,
         map_values=True,
-        values={True: AUTO_MODE, False: MANUAL_MODE},
-        check_set_errors=True
+        values={True: AUTO_MODE, False: MANUAL_MODE}
     )
 
     output_power = Instrument.measurement(
@@ -184,8 +181,7 @@ class Eurotherm2404(Instrument):
         """Control the working mode of the temperature controller.""",
         validator=strict_discrete_set,
         map_values=True,
-        values={'full': FULL_RESOLUTION, 'integer': INTEGER_RESOLUTION},
-        check_set_errors=True
+        values={'full': FULL_RESOLUTION, 'integer': INTEGER_RESOLUTION}
     )
 
     def write(self, command, **kwargs):
@@ -288,7 +284,7 @@ class Eurotherm2404(Instrument):
             log.debug("Readed bytes on check_set_errors: %s", r)
         except Exception as exc:
             log.exception("Setting a property failed.", exc_info=exc)
-            raise
+            # raise
         else:
             return []
 
@@ -302,7 +298,7 @@ class Eurotherm2404(Instrument):
             log.debug("Readed bytes on check_get_errors: ", r)
         except Exception as exc:
             log.exception("Setting a property failed.", exc_info=exc)
-            raise
+            # raise
         else:
             return []
 
