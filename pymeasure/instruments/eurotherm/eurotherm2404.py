@@ -109,9 +109,9 @@ class Eurotherm2404(Instrument):
                  name="Eurotherm2404",
                  address=1,
                  timeout=1000,
-                 read_delay=0.5,
-                 write_delay=0.5,
-                 query_delay=0.5,
+                 read_delay=1.0,
+                 write_delay=1.0,
+                 query_delay=1.0,
                  **kwargs):
         """Initialize the device."""
         super().__init__(
@@ -145,7 +145,8 @@ class Eurotherm2404(Instrument):
 
     selected_setpoint_target = Instrument.setting(
         "W," + str(SELECTED_SETPOINT_VALUE_ADDR) + ",%i",
-        """Control the selected setpoint of the oven in °C."""
+        """Control the selected setpoint of the oven in °C.""",
+        check_set_errors=True
     )
 
     setpoint1_value = Instrument.measurement(
@@ -166,6 +167,7 @@ class Eurotherm2404(Instrument):
     automode_enabled = Instrument.setting(
         "W," + str(MODE_ADDR) + ",%i",
         """Control the working mode of the temperature controller.""",
+        check_set_errors=True,
         validator=strict_discrete_set,
         map_values=True,
         values={True: AUTO_MODE, False: MANUAL_MODE}
@@ -203,7 +205,7 @@ class Eurotherm2404(Instrument):
         address = int(address, 16) if "x" in address else int(address)
         data.extend(address.to_bytes(2, "big"))  # 2B register address
         if function == Functions.W:
-            log.info("Sending command: %s", Functions.WRITESINGLE)
+            log.info("Sending command: %s", "Write multiple registers")
             elements = len(values) * self.byteMode // 2
             data.extend(elements.to_bytes(2, "big"))  # 2B number of elements
             data.append(elements * 2)  # 1B number of bytes to write
@@ -229,9 +231,10 @@ class Eurotherm2404(Instrument):
 
         actual_read_delay = time.time() - self.last_read_timestamp
         time.sleep(max(0, self.read_delay - actual_read_delay))
-
+        print("estoy en read")
         # Slave address, function
         got = self.read_bytes(2)
+        print("slave and function", got)
         if got[1] == Functions.R:
             # length of data to follow
             length = self.read_bytes(1)
@@ -243,6 +246,7 @@ class Eurotherm2404(Instrument):
             return str(int.from_bytes(read[:-2], byteorder="big", signed=True))
         elif got[1] == Functions.W:
             # start address, number elements, CRC; each 2 Bytes long
+            print("hola")
             got += self.read_bytes(2 + 2 + 2)
             if got[-2:] != bytes(CRC16(got[:-2])):
                 raise ConnectionError("Response CRC does not match.")
@@ -255,6 +259,7 @@ class Eurotherm2404(Instrument):
         else:  # an error occurred
             # got[1] is functioncode + 0x80
             end = self.read_bytes(3)  # error code and CRC
+            print("error code and CRC", end)
             errors = {0x02: "Wrong start address.",
                       0x03: "Variable data error.",
                       0x04: "Operation error."}
