@@ -156,6 +156,9 @@ class Eurotherm2404(Instrument):
         cast=int
     )
 
+    def get_setpoint_value(self, setpoint_number):
+        pass
+
     setpoint1_value = Instrument.control(
         "R," + str(SETPOINT1_VALUE_ADDR),
         "W," + str(SETPOINT1_VALUE_ADDR) + ",%i",
