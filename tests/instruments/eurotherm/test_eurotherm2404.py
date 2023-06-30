@@ -34,8 +34,8 @@ def test_working_setpoint():
               bytes([1, 3, 2, 0, 1] + CRC16([1, 3, 2, 0, 1])))
              ],
     ) as inst:
-        inst.working_setpoint_number = 1
-        assert inst.working_setpoint_number == 1
+        inst.selected_setpoint_number = 1
+        assert inst.selected_setpoint_number == 1
 
 
 def test_resolution():

@@ -72,9 +72,8 @@ class Eurotherm2404(Instrument):
 
     # MODBUS ADDRESSES
     PROCESS_TEMP_ADDR = 0x01
-    WRITE_WORKING_SETPOINT_VALUE_ADRR = 0x02
-    READ_WORKING_SETPOINT_VALUE_ADRR = 0X05
-    CHANGE_SETPOINT_ADRR = 0x0f  # 15
+    TARGET_SETPOINT_VALUE_ADRR = 0x02
+    SELECTED_SETPOINT_ADRR = 0x0f  # 15
     SETPOINT1_VALUE_ADDR = 0x18  # 24
     SETPOINT2_VALUE_ADDR = 0x19  # 25
     SETPOINT3_VALUE_ADDR = 0xA4  # 164
@@ -133,9 +132,21 @@ class Eurotherm2404(Instrument):
         self.last_read_timestamp = 0.0
         self.last_query_timestamp = 0.0
 
-    working_setpoint_number = Instrument.control(
-        "R," + str(CHANGE_SETPOINT_ADRR),
-        "W," + str(CHANGE_SETPOINT_ADRR) + ",%i",
+    process_temperature_value = Instrument.measurement(
+        "R," + str(PROCESS_TEMP_ADDR),
+        """Measure the current oven temperature in °C."""
+    )
+
+    target_setpoint_value = Instrument.control(
+        "R," + str(TARGET_SETPOINT_VALUE_ADRR),
+        "W," + str(TARGET_SETPOINT_VALUE_ADRR) + ",%i",
+        """Control the selected setpoint of the oven in °C.""",
+        check_set_errors=True
+    )
+
+    selected_setpoint_number = Instrument.control(
+        "R," + str(SELECTED_SETPOINT_ADRR),
+        "W," + str(SELECTED_SETPOINT_ADRR) + ",%i",
         """Control the selection of the temperature setpoint for the temperature controller.
         Usually, in standard controllers, only two setpoints are available.
         0 corresponds to SP1 and 1 corresponds to SP2 """,
@@ -143,13 +154,6 @@ class Eurotherm2404(Instrument):
         validator=strict_discrete_set,
         values=[n for n in range(0, NUMBER_OF_SETPOINTS_AVAILABLE)],
         cast=int
-    )
-
-    working_setpoint_target_value = Instrument.control(
-        "R," + str(READ_WORKING_SETPOINT_VALUE_ADRR),
-        "W," + str(WRITE_WORKING_SETPOINT_VALUE_ADRR) + ",%i",
-        """Control the selected setpoint of the oven in °C.""",
-        check_set_errors=True
     )
 
     setpoint1_value = Instrument.control(
@@ -178,11 +182,6 @@ class Eurotherm2404(Instrument):
         "W," + str(SETPOINT4_VALUE_ADDR) + ",%i",
         """Control the setpoint1 of the oven in °C.""",
         check_set_errors=True
-    )
-
-    process_temperature_value = Instrument.measurement(
-        "R," + str(PROCESS_TEMP_ADDR),
-        """Measure the current oven temperature in °C."""
     )
 
     automode_enabled = Instrument.setting(

@@ -10,14 +10,14 @@ def main() -> int:
     """Test the communication betwwen PC and the temperature controller Eurotherm 2404"""
     e2404 = Eurotherm2404('ASRL1::INSTR')
     e2404.automode_enabled = False
-    e2404.working_setpoint_number = 0
-    e2404.working_setpoint_target_value = 0
-    e2404.working_setpoint_number = 1
-    e2404.working_setpoint_target_value = 1
-    e2404.working_setpoint_number = 2
-    e2404.working_setpoint_target_value = 2
-    e2404.working_setpoint_number = 3
-    e2404.working_setpoint_target_value = 3
+    e2404.selected_setpoint_number = 0
+    e2404.target_setpoint_value = 0
+    e2404.selected_setpoint_number = 1
+    e2404.target_setpoint_value = 1
+    e2404.selected_setpoint_number = 2
+    e2404.target_setpoint_value = 2
+    e2404.selected_setpoint_number = 3
+    e2404.target_setpoint_value = 3
 
     print(e2404.setpoint1_value)
     print(e2404.setpoint2_value)
