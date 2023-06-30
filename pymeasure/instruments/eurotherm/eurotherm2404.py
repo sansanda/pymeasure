@@ -72,12 +72,13 @@ class Eurotherm2404(Instrument):
 
     # MODBUS ADDRESSES
     PROCESS_TEMP_ADDR = 0x01
-    SELECTED_SETPOINT_VALUE_ADDR = 0x02
-    SELECT_SETPOINT_ADRR = 0x0f  # 15
-    WORKING_SETPOINT_ADRR = 0X05
-    CHANGE_SETPOINT_ADRR = 0x0123  # 291
+    WRITE_WORKING_SETPOINT_VALUE_ADRR = 0x02
+    READ_WORKING_SETPOINT_VALUE_ADRR = 0X05
+    CHANGE_SETPOINT_ADRR = 0x0f  # 15
     SETPOINT1_VALUE_ADDR = 0x18  # 24
     SETPOINT2_VALUE_ADDR = 0x19  # 25
+    SETPOINT3_VALUE_ADDR = 0xA4  # 164
+    SETPOINT4_VALUE_ADDR = 0xA5  # 165
     OUTPUTPOWER_ADDR = 0x03
     MODE_ADDR = 0x0111  # 273
     USER_CALIBRATION_ENABLE_ADDR = 0x6e  # 110
@@ -102,16 +103,16 @@ class Eurotherm2404(Instrument):
     USER_CALIBRATION = 0
 
     # CONTROLLER CHARACTERISTICS
-    NUMBER_OF_SETPOINTS_AVAILABLE = 2
+    NUMBER_OF_SETPOINTS_AVAILABLE = 4
 
     def __init__(self,
                  adapter,
                  name="Eurotherm2404",
                  address=1,
                  timeout=1000,
-                 read_delay=1.0,
-                 write_delay=1.0,
-                 query_delay=1.0,
+                 read_delay=0.3,
+                 write_delay=0.3,
+                 query_delay=0.3,
                  **kwargs):
         """Initialize the device."""
         super().__init__(
@@ -132,31 +133,51 @@ class Eurotherm2404(Instrument):
         self.last_read_timestamp = 0.0
         self.last_query_timestamp = 0.0
 
-    working_setpoint = Instrument.control(
-        "R," + str(WORKING_SETPOINT_ADRR),
+    working_setpoint_number = Instrument.control(
+        "R," + str(CHANGE_SETPOINT_ADRR),
         "W," + str(CHANGE_SETPOINT_ADRR) + ",%i",
         """Control the selection of the temperature setpoint for the temperature controller.
         Usually, in standard controllers, only two setpoints are available.
         0 corresponds to SP1 and 1 corresponds to SP2 """,
+        check_set_errors=True,
         validator=strict_discrete_set,
         values=[n for n in range(0, NUMBER_OF_SETPOINTS_AVAILABLE)],
         cast=int
     )
 
-    selected_setpoint_target = Instrument.setting(
-        "W," + str(SELECTED_SETPOINT_VALUE_ADDR) + ",%i",
+    working_setpoint_target_value = Instrument.control(
+        "R," + str(READ_WORKING_SETPOINT_VALUE_ADRR),
+        "W," + str(WRITE_WORKING_SETPOINT_VALUE_ADRR) + ",%i",
         """Control the selected setpoint of the oven in °C.""",
         check_set_errors=True
     )
 
-    setpoint1_value = Instrument.measurement(
+    setpoint1_value = Instrument.control(
         "R," + str(SETPOINT1_VALUE_ADDR),
-        """Measure the setpoint1 of the oven in °C."""
+        "W," + str(SETPOINT1_VALUE_ADDR) + ",%i",
+        """Control the setpoint1 of the oven in °C.""",
+        check_set_errors=True
     )
 
-    setpoint2_value = Instrument.measurement(
+    setpoint2_value = Instrument.control(
         "R," + str(SETPOINT2_VALUE_ADDR),
-        """Measure the setpoint2 of the oven in °C."""
+        "W," + str(SETPOINT2_VALUE_ADDR) + ",%i",
+        """Control the setpoint1 of the oven in °C.""",
+        check_set_errors=True
+    )
+
+    setpoint3_value = Instrument.control(
+        "R," + str(SETPOINT3_VALUE_ADDR),
+        "W," + str(SETPOINT3_VALUE_ADDR) + ",%i",
+        """Control the setpoint1 of the oven in °C.""",
+        check_set_errors=True
+    )
+
+    setpoint4_value = Instrument.control(
+        "R," + str(SETPOINT4_VALUE_ADDR),
+        "W," + str(SETPOINT4_VALUE_ADDR) + ",%i",
+        """Control the setpoint1 of the oven in °C.""",
+        check_set_errors=True
     )
 
     process_temperature_value = Instrument.measurement(
@@ -231,10 +252,10 @@ class Eurotherm2404(Instrument):
 
         actual_read_delay = time.time() - self.last_read_timestamp
         time.sleep(max(0, self.read_delay - actual_read_delay))
-        print("estoy en read")
+        # print("estoy en read")
         # Slave address, function
         got = self.read_bytes(2)
-        print("slave and function", got)
+        # print("slave and function", got)
         if got[1] == Functions.R:
             # length of data to follow
             length = self.read_bytes(1)
@@ -246,7 +267,7 @@ class Eurotherm2404(Instrument):
             return str(int.from_bytes(read[:-2], byteorder="big", signed=True))
         elif got[1] == Functions.W:
             # start address, number elements, CRC; each 2 Bytes long
-            print("hola")
+            # print("hola")
             got += self.read_bytes(2 + 2 + 2)
             if got[-2:] != bytes(CRC16(got[:-2])):
                 raise ConnectionError("Response CRC does not match.")
@@ -259,7 +280,7 @@ class Eurotherm2404(Instrument):
         else:  # an error occurred
             # got[1] is functioncode + 0x80
             end = self.read_bytes(3)  # error code and CRC
-            print("error code and CRC", end)
+            # print("error code and CRC", end)
             errors = {0x02: "Wrong start address.",
                       0x03: "Variable data error.",
                       0x04: "Operation error."}

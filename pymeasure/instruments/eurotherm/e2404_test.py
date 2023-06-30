@@ -9,8 +9,23 @@ from pymeasure.instruments.eurotherm.eurotherm2404 import CRC16
 def main() -> int:
     """Test the communication betwwen PC and the temperature controller Eurotherm 2404"""
     e2404 = Eurotherm2404('ASRL1::INSTR')
-    e2404.working_setpoint = 1
-    print("Process temperature: ", e2404.process_temperature_value)
+    e2404.automode_enabled = False
+    e2404.working_setpoint_number = 0
+    e2404.working_setpoint_target_value = 0
+    e2404.working_setpoint_number = 1
+    e2404.working_setpoint_target_value = 1
+    e2404.working_setpoint_number = 2
+    e2404.working_setpoint_target_value = 2
+    e2404.working_setpoint_number = 3
+    e2404.working_setpoint_target_value = 3
+
+    print(e2404.setpoint1_value)
+    print(e2404.setpoint2_value)
+    print(e2404.setpoint3_value)
+    print(e2404.setpoint4_value)
+
+    # print("Process temperature: ", e2404.process_temperature_value)
+    # e2404.automode_enabled = True
 
 
     # e2404.resolution = "full"
