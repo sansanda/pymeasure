@@ -22,7 +22,6 @@
 # THE SOFTWARE.
 #
 import logging
-import sys
 import time
 
 from pymeasure.instruments import Instrument
@@ -30,43 +29,36 @@ from enum import IntEnum
 
 from pymeasure.instruments.validators import strict_discrete_set
 
-# create logger
-log_level = logging.DEBUG
 log = logging.getLogger(__name__)
-log.setLevel(log_level)
-
-# create console handler and set level to debug
-ch = logging.StreamHandler()
-ch.setLevel(log_level)
-
-# create formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# add formatter to ch
-ch.setFormatter(formatter)
-
-# add ch to logger
-log.addHandler(ch)
+log.addHandler(logging.NullHandler())
 
 
 class Eurotherm2404(Instrument):
-    """ Represents the Euro Test High Voltage DC Source model HPP-120-256
-    and provides a high-level interface for interacting with the instrument using the
-    Euro Test command set (Not SCPI command set).
+    """Represents the Eurotherm Process Controller model 2404 and provides a high-level interface
+    for interacting with the instrument, reading or/and writing different registers,
+    using the modbus protocol.
 
     .. code-block:: python
 
-        e2404 = Eurotherm2404('ASRL3::INSTR')
-        e2404.working_setpoint = 1
-        e2404.resolution = "full"
+        e2404 = Eurotherm2404('ASRL1::INSTR')
+        e2404.automode_enabled = False
+        e2404.setpoint2_value = 0
+        e2404.selected_setpoint_number = 1  # 0 is the setpoint1
         e2404.automode_enabled = True
-        e2404.working_setpoint = 1
-        e2404.selected_setpoint_target = 75
-        e2404.automode_enabled = True
-        while True:
-            print("Process temperature: ", e2404.process_temperature_value)
-            print("Output power: ", e2404.output_power)
-            time.sleep(1)
+
+        update_oven_temperaure_period = 120  # seconds
+        sampling_period = 1  # seconds
+        temperature_ramp = [30, 40, 50, 60, 70, 80, 90, 100, 0]  # ºC
+
+        # Oven ramp
+        for temp_value in temperature_ramp:
+            t = 0
+            e2404.target_setpoint_value = temp_value
+            while t < update_oven_temperaure_period:
+                print("Process temperature: ", e2404.process_temperature_value)
+                print("Output power: ", e2404.output_power)
+                time.sleep(sampling_period)
+                t = t + 1
     """
     byteMode = 2  # is the length in bytes of the register (normally holding registers RTU 2 bytes)
 
@@ -140,7 +132,8 @@ class Eurotherm2404(Instrument):
     target_setpoint_value = Instrument.control(
         "R," + str(TARGET_SETPOINT_VALUE_ADRR),
         "W," + str(TARGET_SETPOINT_VALUE_ADRR) + ",%i",
-        """Control the selected setpoint of the oven in °C.""",
+        """Control the selected setpoint of the oven in °C. If the selected setpoint number is
+        the 0 (e.x) then the setpoint1_value register (address 24) will also change""",
         check_set_errors=True
     )
 
@@ -148,16 +141,14 @@ class Eurotherm2404(Instrument):
         "R," + str(SELECTED_SETPOINT_ADRR),
         "W," + str(SELECTED_SETPOINT_ADRR) + ",%i",
         """Control the selection of the temperature setpoint for the temperature controller.
-        Usually, in standard controllers, only two setpoints are available.
-        0 corresponds to SP1 and 1 corresponds to SP2 """,
+        Only works with auto-mode enabled. Usually, in standard controllers,
+        only two setpoints are available.
+        0 corresponds to SP1, 1 corresponds to SP2, and so on...""",
         check_set_errors=True,
         validator=strict_discrete_set,
         values=[n for n in range(0, NUMBER_OF_SETPOINTS_AVAILABLE)],
         cast=int
     )
-
-    def get_setpoint_value(self, setpoint_number):
-        pass
 
     setpoint1_value = Instrument.control(
         "R," + str(SETPOINT1_VALUE_ADDR),
@@ -169,21 +160,21 @@ class Eurotherm2404(Instrument):
     setpoint2_value = Instrument.control(
         "R," + str(SETPOINT2_VALUE_ADDR),
         "W," + str(SETPOINT2_VALUE_ADDR) + ",%i",
-        """Control the setpoint1 of the oven in °C.""",
+        """Control the setpoint2 of the oven in °C.""",
         check_set_errors=True
     )
 
     setpoint3_value = Instrument.control(
         "R," + str(SETPOINT3_VALUE_ADDR),
         "W," + str(SETPOINT3_VALUE_ADDR) + ",%i",
-        """Control the setpoint1 of the oven in °C.""",
+        """Control the setpoint3 of the oven in °C.""",
         check_set_errors=True
     )
 
     setpoint4_value = Instrument.control(
         "R," + str(SETPOINT4_VALUE_ADDR),
         "W," + str(SETPOINT4_VALUE_ADDR) + ",%i",
-        """Control the setpoint1 of the oven in °C.""",
+        """Control the setpoint4 of the oven in °C.""",
         check_set_errors=True
     )
 
@@ -199,14 +190,6 @@ class Eurotherm2404(Instrument):
     output_power = Instrument.measurement(
         "R," + str(OUTPUTPOWER_ADDR),
         """Measure the current oven output power in %."""
-    )
-
-    resolution = Instrument.setting(
-        "W," + str(RESOLUTION_ADDR) + ",%s",
-        """Control the working mode of the temperature controller.""",
-        validator=strict_discrete_set,
-        map_values=True,
-        values={'full': FULL_RESOLUTION, 'integer': INTEGER_RESOLUTION}
     )
 
     def write(self, command, **kwargs):
@@ -254,10 +237,8 @@ class Eurotherm2404(Instrument):
 
         actual_read_delay = time.time() - self.last_read_timestamp
         time.sleep(max(0, self.read_delay - actual_read_delay))
-        # print("estoy en read")
         # Slave address, function
         got = self.read_bytes(2)
-        # print("slave and function", got)
         if got[1] == Functions.R:
             # length of data to follow
             length = self.read_bytes(1)
@@ -269,7 +250,6 @@ class Eurotherm2404(Instrument):
             return str(int.from_bytes(read[:-2], byteorder="big", signed=True))
         elif got[1] == Functions.W:
             # start address, number elements, CRC; each 2 Bytes long
-            # print("hola")
             got += self.read_bytes(2 + 2 + 2)
             if got[-2:] != bytes(CRC16(got[:-2])):
                 raise ConnectionError("Response CRC does not match.")
@@ -282,7 +262,6 @@ class Eurotherm2404(Instrument):
         else:  # an error occurred
             # got[1] is functioncode + 0x80
             end = self.read_bytes(3)  # error code and CRC
-            # print("error code and CRC", end)
             errors = {0x02: "Wrong start address.",
                       0x03: "Variable data error.",
                       0x04: "Operation error."}
